@@ -1,0 +1,9 @@
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: decsync
+Description: Library for synchronizing using DecSync
+Version: 1.0.0
+Libs: -L${libdir} -ldecsync
+Cflags: -I${includedir}
