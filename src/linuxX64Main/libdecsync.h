@@ -299,6 +299,19 @@ inline static void decsync_get_static_info(const char* decsync_dir, const char* 
 }
 
 /**
+ * Checks whether the .decsync-info file in [decsyncDir] is of the right format and contains a
+ * supported version. If it does not exist, a new one with version 1 is created.
+ *
+ * @return an error code indicating success or failure:
+ *   - 0 for success
+ *   - 1 for invalid info
+ *   - 2 for unsupported version
+ */
+inline static int decsync_check_decsync_info(const char* decsync_dir) {
+    return decsync_so_check_decsync_info(decsync_dir);
+}
+
+/**
  * Returns a list of DecSync collections inside a [decsync_dir] for a [sync_type]. This function
  * does not apply for sync types with single instances.
  *

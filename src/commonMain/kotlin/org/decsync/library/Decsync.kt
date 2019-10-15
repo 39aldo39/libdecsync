@@ -87,18 +87,9 @@ class Decsync<T>(
 ) {
     private val dir = getDecsyncSubdir(decsyncDir, syncType, collection)
     private val listeners: MutableList<OnEntryUpdateListener<T>> = mutableListOf()
-    private val decsyncVersion: Int
 
     init {
-        try {
-            val obj = getDecsyncInfo(decsyncDir) ?: defaultDecsyncInfo.also { setDecsyncInfo(decsyncDir, it) }
-            decsyncVersion = obj.getPrimitive("version").int
-            if (decsyncVersion !in 1..SUPPORTED_VERSION) {
-                throw UnsupportedVersionException(decsyncVersion, SUPPORTED_VERSION)
-            }
-        } catch (e: JsonException) {
-            throw InvalidInfoException(e)
-        }
+        checkDecsyncInfo(decsyncDir)
     }
 
     /**
@@ -451,6 +442,25 @@ class Decsync<T>(
             }
             return result
         }
+    }
+}
+
+/**
+ * Checks whether the .decsync-info file in [decsyncDir] is of the right format and contains a
+ * supported version. If it does not exist, a new one with version 1 is created.
+ *
+ * @throws DecsyncException if a DecSync configuration error occurred.
+ */
+@ExperimentalStdlibApi
+fun checkDecsyncInfo(decsyncDir: String) {
+    try {
+        val obj = getDecsyncInfo(decsyncDir) ?: defaultDecsyncInfo.also { setDecsyncInfo(decsyncDir, it) }
+        val decsyncVersion = obj.getPrimitive("version").int
+        if (decsyncVersion !in 1..SUPPORTED_VERSION) {
+            throw UnsupportedVersionException(decsyncVersion, SUPPORTED_VERSION)
+        }
+    } catch (e: JsonException) {
+        throw InvalidInfoException(e)
     }
 }
 

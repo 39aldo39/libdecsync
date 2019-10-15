@@ -209,6 +209,21 @@ fun getStaticInfo(decsyncDirOrEmpty: String?, syncType: String, collectionOrEmpt
 }
 
 @ExperimentalStdlibApi
+@CName(externName = "decsync_so_check_decsync_info")
+fun checkDecsyncInfoC(decsyncDirOrEmpty: String?): Int {
+    val decsyncDir = if (decsyncDirOrEmpty.isNullOrEmpty()) getDefaultDecsyncDir() else decsyncDirOrEmpty
+    return try {
+        checkDecsyncInfo(decsyncDir)
+        DecsyncError.NoError
+    } catch (e: DecsyncException) {
+        when (e) {
+            is InvalidInfoException -> DecsyncError.InvalidInfo
+            is UnsupportedVersionException -> DecsyncError.UnsupportedVersion
+        }
+    }
+}
+
+@ExperimentalStdlibApi
 @CName(externName = "decsync_so_list_decsync_collections")
 fun listDecsyncCollectionsC(decsyncDirOrEmpty: String?, syncType: String, collections: CArray<CString>, max_len: Int): Int {
     val decsyncDir = if (decsyncDirOrEmpty.isNullOrEmpty()) getDefaultDecsyncDir() else decsyncDirOrEmpty
