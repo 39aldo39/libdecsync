@@ -64,17 +64,17 @@ kotlin {
     sourceSets {
         commonMain {
             dependencies {
-                implementation "org.jetbrains.kotlinx:kotlinx-serialization-runtime-common:0.12.0"
+                implementation "org.jetbrains.kotlinx:kotlinx-serialization-runtime-common:0.13.0"
             }
         }
         androidMain {
             dependencies {
-                implementation "org.jetbrains.kotlinx:kotlinx-serialization-runtime:0.12.0"
+                implementation "org.jetbrains.kotlinx:kotlinx-serialization-runtime:0.13.0"
             }
         }
         linuxX64Main {
             dependencies {
-                implementation "org.jetbrains.kotlinx:kotlinx-serialization-runtime-native:0.12.0"
+                implementation "org.jetbrains.kotlinx:kotlinx-serialization-runtime-native:0.13.0"
             }
         }
     }
