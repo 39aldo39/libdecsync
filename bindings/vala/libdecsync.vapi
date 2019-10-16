@@ -60,6 +60,9 @@ namespace Decsync {
 	[CCode (cname = "decsync_get_static_info")]
 	public void get_static_info(string? decsync_dir, string sync_type, string? collection, string key, char[] value);
 
+	[CCode (cname = "decsync_check_decsync_info")]
+	public int check_decsync_info(string? decsync_dir);
+
 	[CCode (cname = "decsync_get_app_id")]
 	public void get_app_id(string app_name, char[] app_id);
 

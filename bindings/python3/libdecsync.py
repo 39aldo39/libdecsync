@@ -120,6 +120,11 @@ _get_static_info_c = _libdecsync.decsync_so_get_static_info
 _get_static_info_c.argtypes = [c_char_p, c_char_p, c_char_p, c_char_p, c_char_p, c_int]
 _get_static_info_c.restype = None
 
+_check_decsync_info_c = _libdecsync.decsync_so_check_decsync_info
+_check_decsync_info_c.argtypes = [c_char_p]
+_check_decsync_info_c.restype = c_int
+_check_decsync_info_c.errcheck = _errcheckDecsync
+
 _list_decsync_collections_c = _libdecsync.decsync_so_list_decsync_collections
 _list_decsync_collections_c.argtypes = [c_char_p, c_char_p, POINTER(c_char_p), c_int]
 _list_decsync_collections_c.restype = c_int
@@ -237,7 +242,7 @@ class Decsync:
             [init_stored_entries] and [execute_stored_entry] or similar. Even if the old appId is
             not reused, it is still recommended to call these. For the default appId, use
             [get_app_id].
-        :throws DecsyncException: If a DecSync configuration error occured.
+        :throws DecsyncException: If a DecSync configuration error occurred.
 
         """
         self.ptr = c_void_p()
@@ -400,7 +405,23 @@ class Decsync:
         :rtype: json
 
         """
+        if decsync_dir is None:
+            decsync_dir = ""
+        if collection is None:
+            collection = ""
         return json.loads(_c_return_string(_get_static_info_c, decsync_dir.encode(), sync_type.encode(), collection.encode(), json.dumps(key).encode()))
+
+    @staticmethod
+    def check_decsync_info(decsync_dir):
+        """
+        Checks whether the .decsync-info file in [decsync_dir] is of the right format and contains a
+        supported version. If it does not exist, a new one with version 1 is created.
+
+        :throws DecsyncException: If a DecSync configuration error occurred.
+        """
+        if decsync_dir is None:
+            decsync_dir = ""
+        _check_decsync_info_c(decsync_dir.encode())
 
     @staticmethod
     def list_collections(decsync_dir, sync_type, max_len=256):
