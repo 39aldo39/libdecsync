@@ -40,7 +40,7 @@ namespace Decsync {
 	[CCode (cname = "Decsync", cprefix = "decsync_", free_function = "decsync_free")]
 	public class Decsync<T> {
 		[CCode (has_typedef = false, has_target = false)]
-		public delegate void Listener<T>(string[] path, string key, string value, T extra);
+		public delegate void Listener<T>(string[] path, string datetime, string key, string value, T extra);
 
 		public static int new(out Decsync<T> decsync, string? decsync_dir, string sync_type, string? collection, string own_app_id);
 
