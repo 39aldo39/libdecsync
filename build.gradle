@@ -85,8 +85,8 @@ publishing {
         maven {
             url = "https://api.bintray.com/maven/39aldo39/maven/libdecsync"
             credentials {
-                username = bintrayUser
-                password = bintrayApiKey
+                username = project.hasProperty("bintrayUser") ? bintrayUser : ""
+                password = project.hasProperty("bintrayApiKey") ? bintrayApiKey : ""
             }
         }
     }
