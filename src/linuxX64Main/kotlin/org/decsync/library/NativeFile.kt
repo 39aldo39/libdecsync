@@ -46,7 +46,9 @@ actual class NativeFile actual constructor(actual val path: String) {
         val d = opendir(path) ?: return emptyList()
         while (true) {
             val dir = readdir(d)?.pointed ?: break
-            result += dir.d_name.toKString()
+            val name = dir.d_name.toKString()
+            if (name == "." || name == "..") continue
+            result += name
         }
         closedir(d)
         return result
