@@ -41,18 +41,9 @@ actual class NativeFile actual constructor(actual val path: String) {
     }
     actual fun length(): Int = file.length().toInt()
     actual fun read(readBytes: Int): ByteArray =
-            // Based on File.readBytes()
             file.inputStream().use { input ->
-                var offset = readBytes
-                var remaining = length() - offset
-                val result = ByteArray(remaining)
-                while (remaining > 0) {
-                    val read = input.read(result, offset, remaining)
-                    if (read < 0) break
-                    remaining -= read
-                    offset += read
-                }
-                if (remaining == 0) result else result.copyOf(offset - readBytes)
+                input.skip(readBytes.toLong())
+                input.readBytes()
             }
     actual fun write(text: ByteArray, append: Boolean) =
             if (append) {
