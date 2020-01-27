@@ -19,6 +19,7 @@
 package org.decsync.library
 
 import kotlinx.cinterop.*
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlin.math.min
 
@@ -27,11 +28,12 @@ typealias CString = CPointer<ByteVar>
 typealias CPath = CArray<CString>
 typealias V = COpaquePointer
 
-object DecsyncError {
-    const val NoError = 0
-    const val InvalidInfo = 1
-    const val UnsupportedVersion = 2
-}
+actual sealed class DecsyncException(val errorCode: Int) : Exception()
+class InvalidInfoException : DecsyncException(1)
+class UnsupportedVersionException : DecsyncException(2)
+
+actual fun getInvalidInfoException(e: Exception): DecsyncException = InvalidInfoException()
+actual fun getUnsupportedVersionException(requiredVersion: Int, supportedVersion: Int): DecsyncException = UnsupportedVersionException()
 
 @ExperimentalStdlibApi
 @CName(externName = "decsync_so_new")
@@ -46,14 +48,11 @@ fun decsync(
     val collection = if (collectionOrEmpty.isNullOrEmpty()) null else collectionOrEmpty
     return try {
         decsync[0] = StableRef.create<Decsync<V>>(
-                Decsync(decsyncDir, syncType, collection, ownAppId)
+                Decsync(getNativeFileFromPath(decsyncDir), CR, syncType, collection, ownAppId)
         ).asCPointer()
-        DecsyncError.NoError
+        0
     } catch (e: DecsyncException) {
-        when (e) {
-            is InvalidInfoException -> DecsyncError.InvalidInfo
-            is UnsupportedVersionException -> DecsyncError.UnsupportedVersion
-        }
+        e.errorCode
     }
 }
 
@@ -203,7 +202,7 @@ fun latestAppId(decsync: V, appId: CString, len: Int) =
 fun getStaticInfo(decsyncDirOrEmpty: String?, syncType: String, collectionOrEmpty: String?, key: String, value: CString, len: Int) {
     val decsyncDir = if (decsyncDirOrEmpty.isNullOrEmpty()) getDefaultDecsyncDir() else decsyncDirOrEmpty
     val collection = if (collectionOrEmpty.isNullOrEmpty()) null else collectionOrEmpty
-    val result = Decsync.getStaticInfo(decsyncDir, syncType, collection)
+    val result = Decsync.getStaticInfo(getNativeFileFromPath(decsyncDir), CR, syncType, collection)
             .getOrElse(parseJson(key), { JsonNull }).toString()
     fillBuffer(result, value, len)
 }
@@ -213,13 +212,10 @@ fun getStaticInfo(decsyncDirOrEmpty: String?, syncType: String, collectionOrEmpt
 fun checkDecsyncInfoC(decsyncDirOrEmpty: String?): Int {
     val decsyncDir = if (decsyncDirOrEmpty.isNullOrEmpty()) getDefaultDecsyncDir() else decsyncDirOrEmpty
     return try {
-        checkDecsyncInfo(decsyncDir)
-        DecsyncError.NoError
+        checkDecsyncInfo(getNativeFileFromPath(decsyncDir), CR)
+        0
     } catch (e: DecsyncException) {
-        when (e) {
-            is InvalidInfoException -> DecsyncError.InvalidInfo
-            is UnsupportedVersionException -> DecsyncError.UnsupportedVersion
-        }
+        e.errorCode
     }
 }
 
@@ -227,7 +223,7 @@ fun checkDecsyncInfoC(decsyncDirOrEmpty: String?): Int {
 @CName(externName = "decsync_so_list_decsync_collections")
 fun listDecsyncCollectionsC(decsyncDirOrEmpty: String?, syncType: String, collections: CArray<CString>, max_len: Int): Int {
     val decsyncDir = if (decsyncDirOrEmpty.isNullOrEmpty()) getDefaultDecsyncDir() else decsyncDirOrEmpty
-    val names = listDecsyncCollections(decsyncDir, syncType)
+    val names = listDecsyncCollections(getNativeFileFromPath(decsyncDir), syncType)
     val len = min(names.size, max_len)
     for (i in 0 until len) {
         fillBuffer(names[i], collections[i]!!, 256)
@@ -263,4 +259,4 @@ private fun fillBuffer(input: String, buffer: CString, buf_len: Int) {
     buffer[len] = 0
 }
 
-private fun parseJson(string: String) = json.parseJson(string)
+private fun parseJson(string: String): JsonElement = json.parseJson(string)

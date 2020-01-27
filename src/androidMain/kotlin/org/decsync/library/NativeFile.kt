@@ -18,37 +18,83 @@
 
 package org.decsync.library
 
-import java.io.File
+import androidx.documentfile.provider.DocumentFile
+import kotlinx.io.IOException
 
-actual class NativeFile actual constructor(actual val path: String) {
-    private val file: File = File(path)
+actual typealias ContentResolver = android.content.ContentResolver
 
-    actual val fileType: FileType =
-            when {
-                file.isFile -> FileType.FILE
-                file.isDirectory -> FileType.DIRECTORY
-                else -> FileType.DOES_NOT_EXIST
-            }
+class VarNativeFile(var nativeFile: NativeFile)
 
-    actual fun children(): List<String> = (file.list() ?: emptyArray()).asList()
-    actual fun child(name: String): NativeFile = NativeFile("$path/$name")
+class RealFileImpl(val file: DocumentFile) : RealFile() {
+    override fun child(name: String): NativeFile = throw IOException("child called on file $this")
 
-    actual fun createParent() {
-        file.parentFile.mkdirs()
+    override fun delete() {
+        file.delete()
     }
-    actual fun delete() {
-        file.deleteRecursively()
-    }
-    actual fun length(): Int = file.length().toInt()
-    actual fun read(readBytes: Int): ByteArray =
-            file.inputStream().use { input ->
+    override fun length(): Int = file.length().toInt()
+    override fun read(cr: ContentResolver, readBytes: Int): ByteArray =
+            cr.openInputStream(file.uri)?.use { input ->
                 input.skip(readBytes.toLong())
                 input.readBytes()
-            }
-    actual fun write(text: ByteArray, append: Boolean) =
-            if (append) {
-                file.appendBytes(text)
-            } else {
-                file.writeBytes(text)
-            }
+            } ?: throw IOException("Could not open input stream for file $this")
+    override fun write(cr: ContentResolver, text: ByteArray, append: Boolean) {
+        val mode = if (append) "wa" else "w"
+        cr.openOutputStream(file.uri, mode)?.use { output ->
+            output.write(text)
+        } ?: throw IOException("Could not open output stream for file $this")
+    }
+
+    override fun toString(): String = file.uri.toString()
+}
+
+class RealDirectoryImpl(val file: DocumentFile) : RealDirectory() {
+    private val thisAsVarNativeFile = VarNativeFile(this)
+
+    override fun child(name: String): NativeFile =
+            file.findFile(name)?.let {
+                if (it.isFile) RealFileImpl(it) else RealDirectoryImpl(it)
+            } ?: NonExistingFileImpl(thisAsVarNativeFile, name)
+
+    override fun children(): List<String> = file.listFiles().asList().mapNotNull { it.name }
+    override fun childrenFiles(): List<NativeFile> = file.listFiles().asList().map { file ->
+        if (file.isFile) RealFileImpl(file) else RealDirectoryImpl(file)
+    }
+
+    override fun delete() {
+        file.delete()
+    }
+
+    override fun toString(): String = file.uri.toString()
+}
+
+class NonExistingFileImpl(val parent: VarNativeFile, val name: String) : NonExistingFile() {
+    private val thisAsVarNativeFile = VarNativeFile(this)
+
+    override fun child(name: String): NativeFile = NonExistingFileImpl(thisAsVarNativeFile, name)
+
+    override fun mkfile(): RealFile {
+        val parentDocumentFile = getParentDocumentFile()
+        val result = parentDocumentFile.findFile(name)
+        if (result != null) return RealFileImpl(result)
+        val documentFile = parentDocumentFile.createFile("", name) ?: throw IOException("Could not create file $name of parent $parentDocumentFile")
+        return RealFileImpl(documentFile)
+    }
+
+    private fun mkdir(): DocumentFile {
+        val parentDocumentFile = getParentDocumentFile()
+        val result = parentDocumentFile.findFile(name)
+        if (result != null) return result
+        return parentDocumentFile.createDirectory(name) ?: throw IOException("Could not create directory $name of parent $parentDocumentFile")
+    }
+
+    private fun getParentDocumentFile(): DocumentFile {
+        return when (val parentNativeFile = parent.nativeFile) {
+            is RealFileImpl -> throw IOException("Cannot create child of file $parent")
+            is RealDirectoryImpl -> parentNativeFile.file
+            is NonExistingFileImpl -> parentNativeFile.mkdir().also { parent.nativeFile = RealDirectoryImpl(it) }
+            else -> throw IOException("Non-standard file type found. This should never happen.")
+        }
+    }
+
+    override fun toString(): String = "$parent/$name"
 }

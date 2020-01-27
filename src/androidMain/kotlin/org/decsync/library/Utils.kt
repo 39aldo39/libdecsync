@@ -32,8 +32,5 @@ private val iso8601Format: DateFormat =
             timeZone = TimeZone.getTimeZone("UTC")
         }
 
-actual fun getDefaultDecsyncDir(): String =
-        "${Environment.getExternalStorageDirectory()}/DecSync"
-
 @ExperimentalStdlibApi
 actual fun byteArrayToString(input: ByteArray): String = input.decodeToString()

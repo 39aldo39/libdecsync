@@ -20,5 +20,4 @@ package org.decsync.library
 
 expect fun getDeviceName(): String
 expect fun currentDatetime(): String
-expect fun getDefaultDecsyncDir(): String
 expect fun byteArrayToString(input: ByteArray): String

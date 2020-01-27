@@ -1,5 +1,5 @@
 /**
- * libdecsync - FileUtils.kt
+ * libdecsync - NativeFile.kt
  *
  * Copyright (C) 2019 Aldo Gunsing
  *
@@ -18,20 +18,25 @@
 
 package org.decsync.library
 
-enum class FileType {
-    FILE, DIRECTORY, DOES_NOT_EXIST
+expect abstract class ContentResolver
+
+sealed class NativeFile {
+    abstract fun child(name: String): NativeFile
 }
 
-expect class NativeFile(path: String) {
-    val path: String
-    val fileType: FileType
+abstract class RealFile : NativeFile() {
+    abstract fun delete()
+    abstract fun length(): Int
+    abstract fun read(cr: ContentResolver, readBytes: Int = 0): ByteArray
+    abstract fun write(cr: ContentResolver, text: ByteArray, append: Boolean = false)
+}
 
-    fun children(): List<String>
-    fun child(name: String): NativeFile
+abstract class RealDirectory : NativeFile() {
+    abstract fun children(): List<String>
+    abstract fun childrenFiles(): List<NativeFile>
+    abstract fun delete()
+}
 
-    fun createParent()
-    fun delete()
-    fun length(): Int
-    fun read(readBytes: Int = 0): ByteArray
-    fun write(text: ByteArray, append: Boolean = false)
+abstract class NonExistingFile : NativeFile() {
+    abstract fun mkfile(): RealFile
 }

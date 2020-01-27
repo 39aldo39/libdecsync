@@ -22,7 +22,7 @@ import kotlinx.cinterop.*
 import platform.posix.*
 
 actual fun getDeviceName(): String {
-    val name = ByteArray(255)
+    val name = ByteArray(256)
     name.usePinned { namePin ->
         if (gethostname(namePin.addressOf(0), (name.size - 1).toULong()) != 0) {
             throw Exception("Failed to get host name")
@@ -43,7 +43,7 @@ actual fun currentDatetime(): String {
     return "$year-$mon-${day}T$hour:$min:$sec"
 }
 
-actual fun getDefaultDecsyncDir(): String =
+fun getDefaultDecsyncDir(): String =
         getenv("DECSYNC_DIR")?.toKString() ?: getUserDataDir() + "/decsync"
 private fun getUserDataDir(): String =
         getenv("XDG_DATA_HOME")?.toKString() ?: getenv("HOME")!!.toKString() + "/.local/share"

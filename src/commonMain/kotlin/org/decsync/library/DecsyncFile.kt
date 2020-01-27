@@ -22,10 +22,8 @@ import kotlinx.io.IOException
 
 @ExperimentalStdlibApi
 class DecsyncFile(
-        private val file: NativeFile
+        private var file: NativeFile
 ) {
-    constructor(dir: String): this(NativeFile(dir))
-
     fun child(name: String): DecsyncFile {
         val encodedName = Url.encode(name)
         val file = this.file.child(encodedName)
@@ -48,56 +46,70 @@ class DecsyncFile(
 
     fun child(vararg names: String): DecsyncFile = child(names.asIterable())
 
-    fun readLines(readBytes: Int = 0): List<String> =
-            when (file.fileType) {
-                FileType.FILE ->
-                    byteArrayToString(file.read(readBytes))
-                            .split('\n')
-                            .filter { it.isNotBlank() }
-                FileType.DIRECTORY -> throw IOException("readLines called on directory ${file.path}")
-                FileType.DOES_NOT_EXIST -> emptyList()
-            }
-
-    fun writeLines(lines: Iterable<String>, append: Boolean = false) {
-        when (file.fileType) {
-            FileType.FILE -> {}
-            FileType.DIRECTORY -> throw IOException("writeLines called on directory ${file.path}")
-            FileType.DOES_NOT_EXIST -> file.createParent()
+    fun readLines(cr: ContentResolver, readBytes: Int = 0): List<String> {
+        return when (val file = file) {
+            is RealFile ->
+                byteArrayToString(file.read(cr, readBytes))
+                        .split('\n')
+                        .filter { it.isNotBlank() }
+            is RealDirectory -> throw IOException("readLines called on directory $file")
+            is NonExistingFile -> emptyList()
         }
+    }
+
+    fun writeLines(cr: ContentResolver, lines: Iterable<String>, append: Boolean = false) {
+        val fileReal = when (val file = file) {
+            is RealFile -> file
+            is RealDirectory -> throw IOException("writeLines called on directory $file")
+            is NonExistingFile -> file.mkfile()
+        }
+        this.file = fileReal
         val builder = StringBuilder()
         for (line in lines) {
             builder.append(line)
             builder.append('\n')
         }
-        file.write(builder.toString().encodeToByteArray(), append)
+        fileReal.write(cr, builder.toString().encodeToByteArray(), append)
     }
 
-    fun readText(): String? {
-        val lines = readLines()
+    fun readText(cr: ContentResolver): String? {
+        val lines = readLines(cr)
         if (lines.size != 1) {
             return null
         }
         return lines[0]
     }
 
-    fun writeText(text: String) = writeLines(listOf(text))
+    fun writeText(cr: ContentResolver, text: String) = writeLines(cr, listOf(text))
 
-    fun length() =
-            when (file.fileType) {
-                FileType.FILE -> file.length()
-                FileType.DIRECTORY -> throw IOException("length called on directory ${file.path}")
-                FileType.DOES_NOT_EXIST -> 0
+    fun length(): Int {
+        return when (val file = file) {
+            is RealFile -> file.length()
+            is RealDirectory -> throw IOException("length called on directory $file")
+            is NonExistingFile -> 0
+        }
+    }
+
+    fun delete() {
+        return when (val file = file) {
+            is RealFile -> file.delete()
+            is RealDirectory -> {
+                for (child in file.childrenFiles()) {
+                    DecsyncFile(child).delete()
+                }
+                file.delete()
             }
+            is NonExistingFile -> {}
+        }
+    }
 
-    fun delete() = file.delete()
-
-    fun copy(dst: DecsyncFile) {
-        when (file.fileType) {
-            FileType.FILE -> {
-                val lines = readLines()
-                dst.writeLines(lines)
+    fun copy(cr: ContentResolver, dst: DecsyncFile) {
+        when (val file = file) {
+            is RealFile -> {
+                val lines = readLines(cr)
+                dst.writeLines(cr, lines)
             }
-            FileType.DIRECTORY -> {
+            is RealDirectory -> {
                 for (childName in file.children()) {
                     val isHidden = childName[0] == '.'
                     var encodedName = childName
@@ -107,23 +119,23 @@ class DecsyncFile(
                     val name = Url.decode(encodedName) ?: continue
 
                     if (isHidden) {
-                        hiddenChild(name).copy(dst.hiddenChild(name))
+                        hiddenChild(name).copy(cr, dst.hiddenChild(name))
                     } else {
-                        child(name).copy(dst.child(name))
+                        child(name).copy(cr, dst.child(name))
                     }
                 }
             }
-            FileType.DOES_NOT_EXIST -> {}
+            is NonExistingFile -> {}
         }
     }
 
-    override fun toString(): String = file.path
+    override fun toString(): String = file.toString()
 
-    fun listFilesRecursiveRelative(readBytesSrc: DecsyncFile? = null,
+    fun listFilesRecursiveRelative(cr: ContentResolver, readBytesSrc: DecsyncFile? = null,
                                    pathPred: (List<String>) -> Boolean = { true }): List<ArrayList<String>> {
-        return when (file.fileType) {
-            FileType.FILE -> listOf(arrayListOf())
-            FileType.DIRECTORY -> {
+        return when (val file = file) {
+            is RealFile -> listOf(arrayListOf())
+            is RealDirectory -> {
                 file.children().flatMap(fun(encodedName: String): List<ArrayList<String>> {
                     if (encodedName[0] == '.') {
                         return emptyList()
@@ -136,31 +148,36 @@ class DecsyncFile(
                     // Skip same versions
                     if (readBytesSrc != null) {
                         val file = hiddenChild("seq-$name")
-                        val version = file.readText()
+                        val version = file.readText(cr)
                         val readBytesFile = readBytesSrc.hiddenChild("seq-$name")
-                        val readBytesVersion = readBytesFile.readText()
+                        val readBytesVersion = readBytesFile.readText(cr)
                         if (version != null) {
                             if (version == readBytesVersion) {
                                 return emptyList()
                             } else {
-                                readBytesFile.writeText(version)
+                                readBytesFile.writeText(cr, version)
                             }
                         }
                     }
 
                     val newReadBytesSrc = readBytesSrc?.child(name)
                     val newPred = { path: List<String> -> pathPred(listOf(name) + path) }
-                    val paths = child(name).listFilesRecursiveRelative(newReadBytesSrc, newPred)
+                    val paths = child(name).listFilesRecursiveRelative(cr, newReadBytesSrc, newPred)
                     paths.forEach { it.add(0, name) }
                     return paths
                 })
             }
-            else -> emptyList()
+            is NonExistingFile -> emptyList()
         }
     }
 
-    fun listDirectories(): List<String> =
-            file.children()
-                    .filter { it[0] != '.' && file.child(it).fileType == FileType.DIRECTORY }
+    fun listDirectories(): List<String> {
+        return when (val file = file) {
+            is RealFile -> throw IOException("listDirectory called on file $file")
+            is RealDirectory -> file.children()
+                    .filter { it[0] != '.' && file.child(it) is RealDirectory }
                     .mapNotNull { Url.decode(it) }
+            is NonExistingFile -> emptyList()
+        }
+    }
 }

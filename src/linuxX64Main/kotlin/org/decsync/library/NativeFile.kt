@@ -22,26 +22,59 @@ import kotlinx.cinterop.*
 import kotlinx.io.IOException
 import platform.posix.*
 
-actual class NativeFile actual constructor(actual val path: String) {
-    private val createMode = (S_IRWXU or S_IRWXG).toUInt()
-    actual val fileType: FileType
+actual abstract class ContentResolver
+object CR : ContentResolver()
 
-    init {
-        fileType = memScoped {
-            val fileStat = alloc<stat>()
-            if (stat(path, fileStat.ptr) != 0) {
-                FileType.DOES_NOT_EXIST
-            } else {
-                when (fileStat.st_mode.toInt() and S_IFMT) {
-                    S_IFREG -> FileType.FILE
-                    S_IFDIR -> FileType.DIRECTORY
-                    else -> throw IOException("Unknown file type for file $path")
-                }
+val createMode = (S_IRWXU or S_IRWXG).toUInt()
+
+class RealFileImpl(private val path: String) : RealFile() {
+    override fun child(name: String): NativeFile = throw IOException("child called on file $this")
+
+    override fun delete() {
+        unlink(path)
+    }
+    override fun length(): Int {
+        val fd = open(path, O_RDONLY)
+        val result = length(fd)
+        close(fd)
+        return result
+    }
+    private fun length(fd: Int): Int = memScoped {
+        val fileStat = alloc<stat>()
+        fstat(fd, fileStat.ptr)
+        return fileStat.st_size.toInt()
+    }
+    override fun read(cr: ContentResolver, readBytes: Int): ByteArray {
+        val fd = open(path, O_RDONLY)
+        val len = length(fd)
+        val buf = ByteArray(len - readBytes + 1)
+        lseek(fd, readBytes.toLong(), SEEK_SET)
+        buf.usePinned { bufPin ->
+            read(fd, bufPin.addressOf(0), len.toULong())
+        }
+        close(fd)
+        return buf
+    }
+    override fun write(cr: ContentResolver, text: ByteArray, append: Boolean) {
+        if (text.isEmpty()) {
+            if (!append) {
+                delete()
             }
+            return
+        }
+        val fd = open(path, O_CREAT or O_WRONLY or if (append) O_APPEND else 0, createMode)
+        text.usePinned { textPin ->
+            write(fd, textPin.addressOf(0), text.size.toULong())
         }
     }
 
-    actual fun children(): List<String> {
+    override fun toString(): String = path
+}
+
+class RealDirectoryImpl(private val path: String) : RealDirectory() {
+    override fun child(name: String): NativeFile = getNativeFileFromPath("$path/$name")
+
+    override fun children(): List<String> {
         val result = mutableListOf<String>()
         val d = opendir(path) ?: return emptyList()
         while (true) {
@@ -53,66 +86,41 @@ actual class NativeFile actual constructor(actual val path: String) {
         closedir(d)
         return result
     }
-    actual fun child(name: String): NativeFile = NativeFile("$path/$name")
-
-    actual fun createParent() {
-        val parentPath = path.dropLastWhile { it != '/' }.dropLast(1)
-        if (parentPath.isEmpty()) return
-        val parentFile = NativeFile(parentPath)
-        if (parentFile.fileType != FileType.DOES_NOT_EXIST) return
-        parentFile.createParent()
-        mkdir(parentPath, createMode)
-    }
-    actual fun delete() {
-        when (fileType) {
-            FileType.FILE -> deleteFile()
-            FileType.DIRECTORY -> {
-                for (name in children()) {
-                    child(name).delete()
-                }
-                deleteDirectory()
-            }
-            FileType.DOES_NOT_EXIST -> {}
-        }
-    }
-    private fun deleteFile() {
-        unlink(path)
-    }
-    private fun deleteDirectory() {
+    override fun childrenFiles(): List<NativeFile> = children().map { child(it) }
+    override fun delete() {
         rmdir(path)
     }
-    actual fun length(): Int {
-        val fd = open(path, O_RDONLY)
-        val result = length(fd)
-        close(fd)
+
+    override fun toString(): String = path
+}
+
+class NonExistingFileImpl(private val path: String) : NonExistingFile() {
+    override fun child(name: String): NativeFile = NonExistingFileImpl("$path/$name")
+
+    // We only create the parent directory, the file is created automatically
+    override fun mkfile(): RealFile {
+        val result = RealFileImpl(path)
+        val parentPath = path.dropLastWhile { it != '/' }.dropLast(1)
+        if (parentPath.isEmpty()) return result
+        val parentFile = getNativeFileFromPath(parentPath)
+        if (parentFile !is NonExistingFile) return result
+        parentFile.mkfile()
+        mkdir(parentPath, createMode)
         return result
     }
-    private fun length(fd: Int): Int = memScoped {
-        val fileStat = alloc<stat>()
-        fstat(fd, fileStat.ptr)
-        return fileStat.st_size.toInt()
-    }
-    actual fun read(readBytes: Int): ByteArray {
-        val fd = open(path, O_RDONLY)
-        val len = length(fd)
-        val buf = ByteArray(len - readBytes + 1)
-        lseek(fd, readBytes.toLong(), SEEK_SET)
-        buf.usePinned { bufPin ->
-            read(fd, bufPin.addressOf(0), len.toULong())
-        }
-        close(fd)
-        return buf
-    }
-    actual fun write(text: ByteArray, append: Boolean) {
-        if (text.isEmpty()) {
-            if (!append) {
-                deleteFile()
-            }
-            return
-        }
-        val fd = open(path, O_CREAT or O_WRONLY or if (append) O_APPEND else 0, createMode)
-        text.usePinned { textPin ->
-            write(fd, textPin.addressOf(0), text.size.toULong())
+
+    override fun toString(): String = path
+}
+
+fun getNativeFileFromPath(path: String): NativeFile = memScoped {
+    val fileStat = alloc<stat>()
+    if (stat(path, fileStat.ptr) != 0) {
+        return NonExistingFileImpl(path)
+    } else {
+        when (fileStat.st_mode.toInt() and S_IFMT) {
+            S_IFREG -> RealFileImpl(path)
+            S_IFDIR -> RealDirectoryImpl(path)
+            else -> throw IOException("Unknown file type for file $path")
         }
     }
 }
