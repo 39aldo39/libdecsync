@@ -66,6 +66,13 @@ kotlin {
             }
         }
     }
+    mingwX64 {
+        binaries {
+            sharedLib {
+                baseName = "decsync"
+            }
+        }
+    }
 
     sourceSets {
         commonMain {
@@ -79,6 +86,11 @@ kotlin {
             }
         }
         linuxX64Main {
+            dependencies {
+                implementation "org.jetbrains.kotlinx:kotlinx-serialization-runtime-native:0.14.0"
+            }
+        }
+        mingwX64Main {
             dependencies {
                 implementation "org.jetbrains.kotlinx:kotlinx-serialization-runtime-native:0.14.0"
             }
