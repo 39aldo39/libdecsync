@@ -85,15 +85,16 @@ kotlin {
                 implementation "org.jetbrains.kotlinx:kotlinx-serialization-runtime:0.14.0"
             }
         }
-        linuxX64Main {
+        nativeMain {
             dependencies {
                 implementation "org.jetbrains.kotlinx:kotlinx-serialization-runtime-native:0.14.0"
             }
         }
+        linuxX64Main {
+            dependsOn nativeMain
+        }
         mingwX64Main {
-            dependencies {
-                implementation "org.jetbrains.kotlinx:kotlinx-serialization-runtime-native:0.14.0"
-            }
+            dependsOn nativeMain
         }
     }
 }
