@@ -25,6 +25,7 @@ import platform.posix.*
 actual abstract class ContentResolver
 object CR : ContentResolver()
 
+expect val openFlagsBinary: Int
 val createMode = S_IRWXU or S_IRWXG
 expect fun mkdirCustom(path: String, mode: Int)
 expect fun readCustom(fd: Int, buf: CValuesRef<*>?, len: Int)
@@ -37,7 +38,7 @@ class RealFileImpl(private val path: String) : RealFile() {
         unlink(path)
     }
     override fun length(): Int {
-        val fd = open(path, O_RDONLY)
+        val fd = open(path, openFlagsBinary or O_RDONLY)
         val result = length(fd)
         close(fd)
         return result
@@ -48,7 +49,7 @@ class RealFileImpl(private val path: String) : RealFile() {
         return fileStat.st_size.toInt()
     }
     override fun read(cr: ContentResolver, readBytes: Int): ByteArray {
-        val fd = open(path, O_RDONLY)
+        val fd = open(path, openFlagsBinary or O_RDONLY)
         val len = length(fd)
         val buf = ByteArray(len - readBytes + 1)
         lseek(fd, readBytes.off_t(), SEEK_SET)
@@ -65,7 +66,8 @@ class RealFileImpl(private val path: String) : RealFile() {
             }
             return
         }
-        val fd = open(path, O_CREAT or O_WRONLY or if (append) O_APPEND else 0, createMode)
+        val flags = openFlagsBinary or O_CREAT or O_WRONLY or if (append) O_APPEND else 0
+        val fd = open(path, flags, createMode)
         text.usePinned { textPin ->
             writeCustom(fd, textPin.addressOf(0), text.size)
         }

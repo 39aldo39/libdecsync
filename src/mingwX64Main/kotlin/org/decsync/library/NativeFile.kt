@@ -21,6 +21,7 @@ package org.decsync.library
 import kotlinx.cinterop.*
 import platform.posix.*
 
+actual val openFlagsBinary = O_BINARY
 actual fun mkdirCustom(path: String, mode: Int) {
     mkdir(path)
 }
