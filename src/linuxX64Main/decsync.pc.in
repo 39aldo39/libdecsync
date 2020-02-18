@@ -4,6 +4,6 @@ includedir=${prefix}/include
 
 Name: decsync
 Description: Library for synchronizing using DecSync
-Version: 1.2.0
+Version: 1.2.1
 Libs: -L${libdir} -ldecsync
 Cflags: -I${includedir}

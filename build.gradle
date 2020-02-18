@@ -18,7 +18,7 @@ apply plugin: 'kotlinx-serialization'
 apply plugin: 'maven-publish'
 
 group = "org.decsync"
-version = "1.2.0"
+version = "1.2.1"
 
 repositories {
     jcenter()
