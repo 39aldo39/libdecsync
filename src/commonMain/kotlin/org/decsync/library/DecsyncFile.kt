@@ -136,6 +136,21 @@ class DecsyncFile(
         return when (val file = file) {
             is RealFile -> listOf(arrayListOf())
             is RealDirectory -> {
+                // Skip equal sequence numbers
+                if (readBytesSrc != null) {
+                    val seqFile = hiddenChild("decsync-sequence")
+                    val seq = seqFile.readText(cr)
+                    val readBytesSeqFile = readBytesSrc.hiddenChild("decsync-sequence")
+                    val readBytesSeq = readBytesSeqFile.readText(cr)
+                    if (seq != null) {
+                        if (seq == readBytesSeq) {
+                            return emptyList()
+                        } else {
+                            readBytesSeqFile.writeText(cr, seq)
+                        }
+                    }
+                }
+
                 file.children().flatMap(fun(encodedName: String): List<ArrayList<String>> {
                     if (encodedName[0] == '.') {
                         return emptyList()
@@ -143,21 +158,6 @@ class DecsyncFile(
                     val name = Url.decode(encodedName) ?: return emptyList()
                     if (!pathPred(listOf(name))) {
                         return emptyList()
-                    }
-
-                    // Skip same versions
-                    if (readBytesSrc != null) {
-                        val file = hiddenChild("seq-$name")
-                        val version = file.readText(cr)
-                        val readBytesFile = readBytesSrc.hiddenChild("seq-$name")
-                        val readBytesVersion = readBytesFile.readText(cr)
-                        if (version != null) {
-                            if (version == readBytesVersion) {
-                                return emptyList()
-                            } else {
-                                readBytesFile.writeText(cr, version)
-                            }
-                        }
                     }
 
                     val newReadBytesSrc = readBytesSrc?.child(name)
