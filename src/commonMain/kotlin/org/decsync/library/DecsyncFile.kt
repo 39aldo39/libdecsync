@@ -124,6 +124,21 @@ class DecsyncFile(
         return when (file.fileType) {
             FileType.FILE -> listOf(arrayListOf())
             FileType.DIRECTORY -> {
+                // Skip equal sequence numbers
+                if (readBytesSrc != null) {
+                    val seqFile = hiddenChild("decsync-sequence")
+                    val seq = seqFile.readText()
+                    val readBytesSeqFile = readBytesSrc.hiddenChild("decsync-sequence")
+                    val readBytesSeq = readBytesSeqFile.readText()
+                    if (seq != null) {
+                        if (seq == readBytesSeq) {
+                            return emptyList()
+                        } else {
+                            readBytesSeqFile.writeText(seq)
+                        }
+                    }
+                }
+
                 file.children().flatMap(fun(encodedName: String): List<ArrayList<String>> {
                     if (encodedName[0] == '.') {
                         return emptyList()
@@ -131,21 +146,6 @@ class DecsyncFile(
                     val name = Url.decode(encodedName) ?: return emptyList()
                     if (!pathPred(listOf(name))) {
                         return emptyList()
-                    }
-
-                    // Skip same versions
-                    if (readBytesSrc != null) {
-                        val file = hiddenChild("seq-$name")
-                        val version = file.readText()
-                        val readBytesFile = readBytesSrc.hiddenChild("seq-$name")
-                        val readBytesVersion = readBytesFile.readText()
-                        if (version != null) {
-                            if (version == readBytesVersion) {
-                                return emptyList()
-                            } else {
-                                readBytesFile.writeText(version)
-                            }
-                        }
                     }
 
                     val newReadBytesSrc = readBytesSrc?.child(name)
