@@ -22,7 +22,7 @@ import kotlinx.io.IOException
 
 @ExperimentalStdlibApi
 class DecsyncFile(
-        private var file: NativeFile
+        var file: NativeFile
 ) {
     fun child(name: String): DecsyncFile {
         val encodedName = Url.encode(name)
@@ -46,10 +46,10 @@ class DecsyncFile(
 
     fun child(vararg names: String): DecsyncFile = child(names.asIterable())
 
-    fun readLines(cr: ContentResolver, readBytes: Int = 0): List<String> {
+    fun readLines(readBytes: Int = 0): List<String> {
         return when (val file = file) {
             is RealFile ->
-                byteArrayToString(file.read(cr, readBytes))
+                byteArrayToString(file.read(readBytes))
                         .split('\n')
                         .filter { it.isNotBlank() }
             is RealDirectory -> throw IOException("readLines called on directory $file")
@@ -57,7 +57,7 @@ class DecsyncFile(
         }
     }
 
-    fun writeLines(cr: ContentResolver, lines: Iterable<String>, append: Boolean = false) {
+    fun writeLines(lines: Iterable<String>, append: Boolean = false) {
         val fileReal = when (val file = file) {
             is RealFile -> file
             is RealDirectory -> throw IOException("writeLines called on directory $file")
@@ -69,18 +69,18 @@ class DecsyncFile(
             builder.append(line)
             builder.append('\n')
         }
-        fileReal.write(cr, builder.toString().encodeToByteArray(), append)
+        fileReal.write(builder.toString().encodeToByteArray(), append)
     }
 
-    fun readText(cr: ContentResolver): String? {
-        val lines = readLines(cr)
+    fun readText(): String? {
+        val lines = readLines()
         if (lines.size != 1) {
             return null
         }
         return lines[0]
     }
 
-    fun writeText(cr: ContentResolver, text: String) = writeLines(cr, listOf(text))
+    fun writeText(text: String) = writeLines(listOf(text))
 
     fun length(): Int {
         return when (val file = file) {
@@ -91,37 +91,37 @@ class DecsyncFile(
     }
 
     fun delete() {
-        return when (val file = file) {
+        file = when (val file = file) {
             is RealFile -> file.delete()
             is RealDirectory -> {
-                for (child in file.childrenFiles()) {
+                for (child in file.children().toList()) {
                     DecsyncFile(child).delete()
                 }
                 file.delete()
             }
-            is NonExistingFile -> {}
+            is NonExistingFile -> file
         }
     }
 
-    fun copy(cr: ContentResolver, dst: DecsyncFile) {
+    fun copy(dst: DecsyncFile) {
         when (val file = file) {
             is RealFile -> {
-                val lines = readLines(cr)
-                dst.writeLines(cr, lines)
+                val lines = readLines()
+                dst.writeLines(lines)
             }
             is RealDirectory -> {
-                for (childName in file.children()) {
-                    val isHidden = childName[0] == '.'
-                    var encodedName = childName
+                for (child in file.children()) {
+                    val isHidden = child.name[0] == '.'
+                    var encodedName = child.name
                     if (isHidden) {
                         encodedName = encodedName.drop(1)
                     }
                     val name = Url.decode(encodedName) ?: continue
 
                     if (isHidden) {
-                        hiddenChild(name).copy(cr, dst.hiddenChild(name))
+                        hiddenChild(name).copy(dst.hiddenChild(name))
                     } else {
-                        child(name).copy(cr, dst.child(name))
+                        child(name).copy(dst.child(name))
                     }
                 }
             }
@@ -129,9 +129,11 @@ class DecsyncFile(
         }
     }
 
+    fun resetCache() = file.resetCache()
+
     override fun toString(): String = file.toString()
 
-    fun listFilesRecursiveRelative(cr: ContentResolver, readBytesSrc: DecsyncFile? = null,
+    fun listFilesRecursiveRelative(readBytesSrc: DecsyncFile? = null,
                                    pathPred: (List<String>) -> Boolean = { true }): List<ArrayList<String>> {
         return when (val file = file) {
             is RealFile -> listOf(arrayListOf())
@@ -139,19 +141,20 @@ class DecsyncFile(
                 // Skip equal sequence numbers
                 if (readBytesSrc != null) {
                     val seqFile = hiddenChild("decsync-sequence")
-                    val seq = seqFile.readText(cr)
+                    val seq = seqFile.readText()
                     val readBytesSeqFile = readBytesSrc.hiddenChild("decsync-sequence")
-                    val readBytesSeq = readBytesSeqFile.readText(cr)
+                    val readBytesSeq = readBytesSeqFile.readText()
                     if (seq != null) {
                         if (seq == readBytesSeq) {
                             return emptyList()
                         } else {
-                            readBytesSeqFile.writeText(cr, seq)
+                            readBytesSeqFile.writeText(seq)
                         }
                     }
                 }
 
-                file.children().flatMap(fun(encodedName: String): List<ArrayList<String>> {
+                file.children().flatMap(fun(nativeFile: NativeFile): List<ArrayList<String>> {
+                    val encodedName = nativeFile.name
                     if (encodedName[0] == '.') {
                         return emptyList()
                     }
@@ -162,7 +165,7 @@ class DecsyncFile(
 
                     val newReadBytesSrc = readBytesSrc?.child(name)
                     val newPred = { path: List<String> -> pathPred(listOf(name) + path) }
-                    val paths = child(name).listFilesRecursiveRelative(cr, newReadBytesSrc, newPred)
+                    val paths = child(name).listFilesRecursiveRelative(newReadBytesSrc, newPred)
                     paths.forEach { it.add(0, name) }
                     return paths
                 })
@@ -175,8 +178,8 @@ class DecsyncFile(
         return when (val file = file) {
             is RealFile -> throw IOException("listDirectory called on file $file")
             is RealDirectory -> file.children()
-                    .filter { it[0] != '.' && file.child(it) is RealDirectory }
-                    .mapNotNull { Url.decode(it) }
+                    .filter { it.name[0] != '.' && it is RealDirectory }
+                    .mapNotNull { Url.decode(it.name) }
             is NonExistingFile -> emptyList()
         }
     }

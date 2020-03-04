@@ -1,17 +1,18 @@
 package org.decsync.library
 
 import android.app.Activity
-import android.content.ContentResolver
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.DocumentsContract
 import androidx.appcompat.app.AlertDialog
-import androidx.documentfile.provider.DocumentFile
 import androidx.fragment.app.Fragment
 import androidx.preference.PreferenceManager
+import kotlinx.io.IOException
 import kotlinx.serialization.json.JsonElement
+import java.io.FileNotFoundException
 
 actual sealed class DecsyncException(message: String, cause: Throwable? = null) : Exception(message, cause)
 class InvalidInfoException(e: Exception) : DecsyncException("Invalid .decsync-info", e)
@@ -26,49 +27,59 @@ actual fun getUnsupportedVersionException(requiredVersion: Int, supportedVersion
 
 @ExperimentalStdlibApi
 fun <T> getDecsync(
-        decsyncDir: DocumentFile,
-        cr: ContentResolver,
+        context: Context,
+        decsyncDir: Uri,
         syncType: String,
         collection: String?,
         ownAppId: String
 ): Decsync<T> {
-    if (!decsyncDir.canRead() || !decsyncDir.canWrite()) {
-        throw InsufficientAccessException()
-    }
-    val nativeFile = RealDirectoryImpl(decsyncDir)
-    return Decsync(nativeFile, cr, syncType, collection, ownAppId)
+    checkUriPermissions(context, decsyncDir)
+    val nativeFile = realDirectoryFromUri(context, decsyncDir)
+    return Decsync(nativeFile, syncType, collection, ownAppId)
 }
 
 @ExperimentalStdlibApi
 fun checkDecsyncInfo(
-        decsyncDir: DocumentFile,
-        cr: ContentResolver
+        context: Context,
+        decsyncDir: Uri
 ) {
-    if (!decsyncDir.canRead() || !decsyncDir.canWrite()) {
-        throw InsufficientAccessException()
-    }
-    val nativeFile = RealDirectoryImpl(decsyncDir)
-    checkDecsyncInfo(nativeFile, cr)
+    checkUriPermissions(context, decsyncDir)
+    val nativeFile = realDirectoryFromUri(context, decsyncDir)
+    checkDecsyncInfo(nativeFile)
 }
 
 @ExperimentalStdlibApi
 fun listDecsyncCollections(
-        decsyncDir: DocumentFile,
+        context: Context,
+        decsyncDir: Uri,
         syncType: String
 ): List<String> {
-    val nativeFile = RealDirectoryImpl(decsyncDir)
+    val nativeFile = realDirectoryFromUri(context, decsyncDir)
     return listDecsyncCollections(nativeFile, syncType)
 }
 
 @ExperimentalStdlibApi
 fun Decsync.Companion.getStaticInfo(
-        decsyncDir: DocumentFile,
-        cr: ContentResolver,
+        context: Context,
+        decsyncDir: Uri,
         syncType: String,
         collection: String?
 ): Map<JsonElement, JsonElement> {
-    val nativeFile = RealDirectoryImpl(decsyncDir)
-    return getStaticInfo(nativeFile, cr, syncType, collection)
+    val nativeFile = realDirectoryFromUri(context, decsyncDir)
+    return getStaticInfo(nativeFile, syncType, collection)
+}
+
+private fun checkUriPermissions(context: Context, uri: Uri) {
+    if (context.checkCallingOrSelfUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) != PackageManager.PERMISSION_GRANTED ||
+            context.checkCallingOrSelfUriPermission(uri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION) != PackageManager.PERMISSION_GRANTED) {
+        throw InsufficientAccessException()
+    }
+}
+
+@ExperimentalStdlibApi
+private fun realDirectoryFromUri(context: Context, uri: Uri): RealDirectoryImpl {
+    val name = DecsyncPrefUtils.getNameFromUri(context, uri)
+    return RealDirectoryImpl(null, context, uri, name)
 }
 
 object DecsyncPrefUtils {
@@ -76,16 +87,28 @@ object DecsyncPrefUtils {
 
     const val CHOOSE_DECSYNC_DIRECTORY = 40
 
-    fun getDecsyncDir(context: Context): DocumentFile? {
+    fun getDecsyncDir(context: Context): Uri? {
         val settings = PreferenceManager.getDefaultSharedPreferences(context)
-        val uri = settings.getString(DECSYNC_DIRECTORY, null)?.let(Uri::parse) ?: return null
-        return DocumentFile.fromTreeUri(context, uri)
+        return settings.getString(DECSYNC_DIRECTORY, null)?.let(Uri::parse)
     }
 
-    fun putDecsyncDir(context: Context, file: DocumentFile) {
+    fun putDecsyncDir(context: Context, uri: Uri) {
         val editor = PreferenceManager.getDefaultSharedPreferences(context).edit()
-        editor.putString(DECSYNC_DIRECTORY, file.uri.toString())
+        editor.putString(DECSYNC_DIRECTORY, uri.toString())
         editor.apply()
+    }
+
+    fun getNameFromUri(context: Context, uri: Uri): String {
+        val cr = context.contentResolver
+        return cr.query(uri, arrayOf(
+                DocumentsContract.Document.COLUMN_DISPLAY_NAME
+        ), null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                cursor.getString(0)
+            } else {
+                throw FileNotFoundException("Could find file $uri")
+            }
+        } ?: throw IOException("Could not get name of $uri")
     }
 
     fun chooseDecsyncDir(fragment: Fragment) {
@@ -95,7 +118,7 @@ object DecsyncPrefUtils {
         intent.addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
         if (Build.VERSION.SDK_INT >= 26) {
             val volumeId = "primary"
-            val initialUri = getDecsyncDir(fragment.activity!!)?.uri
+            val initialUri = getDecsyncDir(fragment.activity!!)
                     ?: Uri.parse("content://com.android.externalstorage.documents/document/$volumeId%3ADecSync")
             intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, initialUri)
         }
@@ -103,18 +126,18 @@ object DecsyncPrefUtils {
     }
 
     @ExperimentalStdlibApi
-    fun chooseDecsyncDirResult(context: Context, requestCode: Int, resultCode: Int, data: Intent?, callback: ((DocumentFile) -> Unit)? = null) {
+    fun chooseDecsyncDirResult(context: Context, requestCode: Int, resultCode: Int, data: Intent?, callback: ((Uri) -> Unit)? = null) {
         if (requestCode != CHOOSE_DECSYNC_DIRECTORY) return
-        val uri = data?.data
-        if (resultCode == Activity.RESULT_OK && uri != null) {
+        val treeUri = data?.data
+        if (resultCode == Activity.RESULT_OK && treeUri != null) {
             try {
+                val uri = DocumentsContract.buildDocumentUriUsingTree(treeUri, DocumentsContract.getTreeDocumentId(treeUri))
                 val cr = context.contentResolver
-                cr.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                cr.takePersistableUriPermission(uri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-                val dir = DocumentFile.fromTreeUri(context, uri)!!
-                checkDecsyncInfo(dir, cr)
-                putDecsyncDir(context, dir)
-                callback?.invoke(dir)
+                cr.takePersistableUriPermission(treeUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                cr.takePersistableUriPermission(treeUri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+                checkDecsyncInfo(context, uri)
+                putDecsyncDir(context, uri)
+                callback?.invoke(uri)
             } catch (e: DecsyncException) {
                 AlertDialog.Builder(context)
                         .setTitle("DecSync")

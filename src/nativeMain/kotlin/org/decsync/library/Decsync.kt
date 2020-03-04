@@ -48,7 +48,7 @@ fun decsync(
     val collection = if (collectionOrEmpty.isNullOrEmpty()) null else collectionOrEmpty
     return try {
         decsync[0] = StableRef.create<Decsync<V>>(
-                Decsync(getNativeFileFromPath(decsyncDir), CR, syncType, collection, ownAppId)
+                Decsync(getNativeFileFromPath(decsyncDir), syncType, collection, ownAppId)
         ).asCPointer()
         0
     } catch (e: DecsyncException) {
@@ -202,7 +202,7 @@ fun latestAppId(decsync: V, appId: CString, len: Int) =
 fun getStaticInfo(decsyncDirOrEmpty: String?, syncType: String, collectionOrEmpty: String?, key: String, value: CString, len: Int) {
     val decsyncDir = if (decsyncDirOrEmpty.isNullOrEmpty()) getDefaultDecsyncDir() else decsyncDirOrEmpty
     val collection = if (collectionOrEmpty.isNullOrEmpty()) null else collectionOrEmpty
-    val result = Decsync.getStaticInfo(getNativeFileFromPath(decsyncDir), CR, syncType, collection)
+    val result = Decsync.getStaticInfo(getNativeFileFromPath(decsyncDir), syncType, collection)
             .getOrElse(parseJson(key), { JsonNull }).toString()
     fillBuffer(result, value, len)
 }
@@ -212,7 +212,7 @@ fun getStaticInfo(decsyncDirOrEmpty: String?, syncType: String, collectionOrEmpt
 fun checkDecsyncInfoC(decsyncDirOrEmpty: String?): Int {
     val decsyncDir = if (decsyncDirOrEmpty.isNullOrEmpty()) getDefaultDecsyncDir() else decsyncDirOrEmpty
     return try {
-        checkDecsyncInfo(getNativeFileFromPath(decsyncDir), CR)
+        checkDecsyncInfo(getNativeFileFromPath(decsyncDir))
         0
     } catch (e: DecsyncException) {
         e.errorCode

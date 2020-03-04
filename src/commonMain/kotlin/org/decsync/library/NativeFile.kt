@@ -18,23 +18,25 @@
 
 package org.decsync.library
 
-expect abstract class ContentResolver
+import kotlinx.io.IOException
 
 sealed class NativeFile {
+    abstract val name: String
     abstract fun child(name: String): NativeFile
+    open fun resetCache() = Unit
 }
 
 abstract class RealFile : NativeFile() {
-    abstract fun delete()
+    override fun child(name: String): NativeFile = throw IOException("child called on file $this")
+    abstract fun delete(): NonExistingFile
     abstract fun length(): Int
-    abstract fun read(cr: ContentResolver, readBytes: Int = 0): ByteArray
-    abstract fun write(cr: ContentResolver, text: ByteArray, append: Boolean = false)
+    abstract fun read(readBytes: Int = 0): ByteArray
+    abstract fun write(text: ByteArray, append: Boolean = false)
 }
 
 abstract class RealDirectory : NativeFile() {
-    abstract fun children(): List<String>
-    abstract fun childrenFiles(): List<NativeFile>
-    abstract fun delete()
+    abstract fun children(): List<NativeFile>
+    abstract fun delete(): NonExistingFile
 }
 
 abstract class NonExistingFile : NativeFile() {

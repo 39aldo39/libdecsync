@@ -79,16 +79,16 @@ expect fun getUnsupportedVersionException(requiredVersion: Int, supportedVersion
 @ExperimentalStdlibApi
 class Decsync<T> internal constructor(
         decsyncDir: NativeFile,
-        private val cr: ContentResolver,
         syncType: String,
         collection: String?,
         private val ownAppId: String
 ) {
     private val dir = getDecsyncSubdir(decsyncDir, syncType, collection)
     private val listeners: MutableList<OnEntryUpdateListener<T>> = mutableListOf()
+    private var isInInit = false
 
     init {
-        checkDecsyncInfo(decsyncDir, cr)
+        checkDecsyncInfo(decsyncDir)
     }
 
     /**
@@ -222,14 +222,14 @@ class Decsync<T> internal constructor(
 
         // Write new entries
         val lines = entriesToLines(entries)
-        entriesLocation.newEntriesFile.writeLines(cr, lines, true)
+        entriesLocation.newEntriesFile.writeLines(lines, true)
 
         // Update sequence files
         var sequenceDir = dir.child("new-entries", ownAppId)
         for (name in path) {
             val file = sequenceDir.hiddenChild("decsync-sequence")
-            val version = file.readText(cr)?.toLongOrNull() ?: 0
-            file.writeText(cr, (version + 1).toString())
+            val version = file.readText()?.toLongOrNull() ?: 0
+            file.writeText((version + 1).toString())
             sequenceDir = sequenceDir.child(name)
         }
 
@@ -243,13 +243,18 @@ class Decsync<T> internal constructor(
      * @param extra extra userdata passed to the [listeners].
      */
     fun executeAllNewEntries(extra: T) {
+        if (isInInit) {
+            Log.d("executeAllNewEntries called while in init")
+            return
+        }
         Log.d("Execute all new entries in $dir")
         val newEntriesDir = dir.child("new-entries")
+        newEntriesDir.resetCache()
         val readBytesDir = dir.child("read-bytes", ownAppId)
         val appIds = newEntriesDir.listDirectories().filter { it != ownAppId }
         for (appId in appIds) {
             newEntriesDir.child(appId)
-                    .listFilesRecursiveRelative(cr, readBytesDir.child(appId))
+                    .listFilesRecursiveRelative(readBytesDir.child(appId))
                     .map { getNewEntriesLocation(it, appId) }
                     .forEach { executeEntriesLocation(it, extra) }
         }
@@ -258,14 +263,14 @@ class Decsync<T> internal constructor(
     private fun executeEntriesLocation(entriesLocation: EntriesLocation,
                                        extra: T,
                                        keys: List<JsonElement>? = null) {
-        val readBytes = entriesLocation.readBytesFile?.readText(cr)?.toIntOrNull() ?: 0
+        val readBytes = entriesLocation.readBytesFile?.readText()?.toIntOrNull() ?: 0
         val size = entriesLocation.newEntriesFile.length()
         if (readBytes >= size) return
-        entriesLocation.readBytesFile?.writeText(cr, size.toString())
+        entriesLocation.readBytesFile?.writeText(size.toString())
 
         Log.d("Execute entries of ${entriesLocation.path}")
         val entries = entriesLocation.newEntriesFile
-                .readLines(cr, readBytes)
+                .readLines(readBytes)
                 .flatMap { Entry.fromLine(it) }
                 .filter { keys == null || it.key in keys }
                 .groupBy { it.key }.values
@@ -292,7 +297,7 @@ class Decsync<T> internal constructor(
 
         try {
             val storedEntries = HashMap<JsonElement, Entry>()
-            entriesLocation.storedEntriesFile.readLines(cr)
+            entriesLocation.storedEntriesFile.readLines()
                     .flatMap { Entry.fromLine(it) }
                     .forEach {
                         storedEntries[it.key] = it
@@ -311,10 +316,10 @@ class Decsync<T> internal constructor(
             }
             if (storedEntriesRemoved) {
                 val lines = entriesToLines(storedEntries.values)
-                entriesLocation.storedEntriesFile.writeLines(cr, lines)
+                entriesLocation.storedEntriesFile.writeLines(lines)
             }
             val lines = entriesToLines(entries)
-            entriesLocation.storedEntriesFile.writeLines(cr, lines, true)
+            entriesLocation.storedEntriesFile.writeLines(lines, true)
 
             updateLatestStoredEntry(entries)
         } catch (e: Exception) {
@@ -325,9 +330,9 @@ class Decsync<T> internal constructor(
     private fun updateLatestStoredEntry(entries: List<Entry>) {
         val maxDatetime = entries.map { it.datetime }.max() ?: return
         val latestStoredEntryFile = dir.child("info", ownAppId, "latest-stored-entry")
-        val latestDatetime = latestStoredEntryFile.readText(cr)
+        val latestDatetime = latestStoredEntryFile.readText()
         if (latestDatetime == null || maxDatetime > latestDatetime) {
-            latestStoredEntryFile.writeText(cr, maxDatetime)
+            latestStoredEntryFile.writeText(maxDatetime)
         }
     }
 
@@ -364,7 +369,7 @@ class Decsync<T> internal constructor(
                                     keys: List<JsonElement>? = null) {
         Log.d("Execute stored entries of $path")
         dir.child(listOf("stored-entries", ownAppId) + path)
-                .listFilesRecursiveRelative(cr)
+                .listFilesRecursiveRelative()
                 .map { getStoredEntriesLocation(path + it) }
                 .forEach { entriesLocation ->
                     executeEntriesLocation(entriesLocation, extra, keys)
@@ -381,15 +386,19 @@ class Decsync<T> internal constructor(
 
         // Copy the stored files and update the read bytes
         if (otherAppId != ownAppId) {
+            isInInit = true
+
             val ownStoredEntriesDir = dir.child("stored-entries", ownAppId)
             val otherStoredEntriesDir = dir.child("stored-entries", otherAppId)
             ownStoredEntriesDir.delete()
-            otherStoredEntriesDir.copy(cr, ownStoredEntriesDir)
+            otherStoredEntriesDir.copy(ownStoredEntriesDir)
 
             val ownReadBytesDir = dir.child("read-bytes", ownAppId)
             val otherReadBytesDir = dir.child("read-bytes", otherAppId)
             ownReadBytesDir.delete()
-            otherReadBytesDir.copy(cr, ownReadBytesDir)
+            otherReadBytesDir.copy(ownReadBytesDir)
+
+            isInInit = false
         }
     }
 
@@ -404,7 +413,7 @@ class Decsync<T> internal constructor(
         val appIds = infoDir.listDirectories()
         for (appId in appIds) {
             val file = infoDir.child(appId, "latest-stored-entry")
-            val datetime = file.readText(cr) ?: continue
+            val datetime = file.readText() ?: continue
             if (latestDatetime == null || datetime > latestDatetime ||
                     appId == ownAppId && datetime == latestDatetime)
             {
@@ -420,7 +429,7 @@ class Decsync<T> internal constructor(
          * Returns the most up-to-date values stored in the path `["info"]`, in the given DecSync
          * dir [decsyncDir], sync type [syncType] and collection [collection].
          */
-        internal fun getStaticInfo(decsyncDir: NativeFile, cr: ContentResolver, syncType: String, collection: String?): Map<JsonElement, JsonElement> {
+        internal fun getStaticInfo(decsyncDir: NativeFile, syncType: String, collection: String?): Map<JsonElement, JsonElement> {
             Log.d("Get static info in $decsyncDir for syncType $syncType and collection $collection")
             val result = hashMapOf<JsonElement, JsonElement>()
             val datetimes = hashMapOf<JsonElement, String>()
@@ -429,7 +438,7 @@ class Decsync<T> internal constructor(
             val appIds = storedEntriesDir.listDirectories()
             for (appId in appIds) {
                 storedEntriesDir.child(appId, "info")
-                        .readLines(cr)
+                        .readLines()
                         .flatMap { Entry.fromLine(it) }
                         .forEach { entry ->
                             val oldDatetime = datetimes[entry.key]
@@ -451,9 +460,9 @@ class Decsync<T> internal constructor(
  * @throws DecsyncException if a DecSync configuration error occurred.
  */
 @ExperimentalStdlibApi
-internal fun checkDecsyncInfo(decsyncDir: NativeFile, cr: ContentResolver) {
+internal fun checkDecsyncInfo(decsyncDir: NativeFile) {
     try {
-        val obj = getDecsyncInfo(decsyncDir, cr) ?: defaultDecsyncInfo.also { setDecsyncInfo(decsyncDir, cr, it) }
+        val obj = getDecsyncInfo(decsyncDir) ?: defaultDecsyncInfo.also { setDecsyncInfo(decsyncDir, it) }
         val decsyncVersion = obj.getPrimitive("version").int
         if (decsyncVersion !in 1..SUPPORTED_VERSION) {
             throw getUnsupportedVersionException(decsyncVersion, SUPPORTED_VERSION)
@@ -476,11 +485,11 @@ private fun getDecsyncSubdir(decsyncDir: NativeFile, syncType: String, collectio
 private val defaultDecsyncInfo: JsonObject = JsonObject(mapOf("version" to JsonLiteral(1)))
 
 @ExperimentalStdlibApi
-private fun getDecsyncInfo(decsyncDir: NativeFile, cr: ContentResolver): JsonObject? {
+private fun getDecsyncInfo(decsyncDir: NativeFile): JsonObject? {
     val file = decsyncDir.child(".decsync-info")
     return when (file) {
         is RealFile -> {
-            val text = byteArrayToString(file.read(cr))
+            val text = byteArrayToString(file.read())
             json.parseJson(text).jsonObject
         }
         is RealDirectory -> throw IOException("getDecsyncInfo called on directory $file")
@@ -489,14 +498,14 @@ private fun getDecsyncInfo(decsyncDir: NativeFile, cr: ContentResolver): JsonObj
 }
 
 @ExperimentalStdlibApi
-private fun setDecsyncInfo(decsyncDir: NativeFile, cr: ContentResolver, obj: JsonObject) {
+private fun setDecsyncInfo(decsyncDir: NativeFile, obj: JsonObject) {
     val file = decsyncDir.child(".decsync-info")
     val fileReal = when (file) {
         is RealFile -> file
         is RealDirectory -> throw IOException(".decsync-info is a directory")
         is NonExistingFile -> file.mkfile()
     }
-    fileReal.write(cr, obj.toString().encodeToByteArray())
+    fileReal.write(obj.toString().encodeToByteArray())
 }
 
 /**

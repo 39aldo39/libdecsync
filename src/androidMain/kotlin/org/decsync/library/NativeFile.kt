@@ -18,80 +18,159 @@
 
 package org.decsync.library
 
-import androidx.documentfile.provider.DocumentFile
+import android.content.Context
+import android.net.Uri
+import android.provider.DocumentsContract
 import kotlinx.io.IOException
 
-actual typealias ContentResolver = android.content.ContentResolver
-
-class VarNativeFile(var nativeFile: NativeFile)
-
-class RealFileImpl(val file: DocumentFile) : RealFile() {
-    override fun child(name: String): NativeFile = throw IOException("child called on file $this")
-
-    override fun delete() {
-        file.delete()
+@ExperimentalStdlibApi
+class RealFileImpl(
+        val parent: DecsyncFile,
+        val context: Context,
+        val uri: Uri,
+        override val name: String,
+        var length: Int
+) : RealFile() {
+    override fun delete(): NonExistingFile {
+        val cr = context.contentResolver
+        DocumentsContract.deleteDocument(cr, uri)
+        (parent.file as? RealDirectoryImpl)?.removeChild(this)
+        return NonExistingFileImpl(parent, name)
     }
-    override fun length(): Int = file.length().toInt()
-    override fun read(cr: ContentResolver, readBytes: Int): ByteArray =
-            cr.openInputStream(file.uri)?.use { input ->
-                input.skip(readBytes.toLong())
-                input.readBytes()
-            } ?: throw IOException("Could not open input stream for file $this")
-    override fun write(cr: ContentResolver, text: ByteArray, append: Boolean) {
+    override fun length(): Int = length
+    override fun read(readBytes: Int): ByteArray {
+        val cr = context.contentResolver
+        return cr.openInputStream(uri)?.use { input ->
+            input.skip(readBytes.toLong())
+            input.readBytes()
+        } ?: throw IOException("Could not open input stream for file $this")
+    }
+    override fun write(text: ByteArray, append: Boolean) {
         val mode = if (append) "wa" else "w"
-        cr.openOutputStream(file.uri, mode)?.use { output ->
+        val cr = context.contentResolver
+        cr.openOutputStream(uri, mode)?.use { output ->
             output.write(text)
         } ?: throw IOException("Could not open output stream for file $this")
+        if (append)
+            length += text.size
+        else
+            length = text.size
     }
 
-    override fun toString(): String = file.uri.toString()
+    override fun toString(): String = uri.toString()
 }
 
-class RealDirectoryImpl(val file: DocumentFile) : RealDirectory() {
-    private val thisAsVarNativeFile = VarNativeFile(this)
+@ExperimentalStdlibApi
+class RealDirectoryImpl(
+        val parent: DecsyncFile?,
+        val context: Context,
+        val uri: Uri,
+        override val name: String
+) : RealDirectory() {
+    val asDecsyncFile = DecsyncFile(this)
+    private var _children: MutableList<NativeFile>? = null
 
+    override fun resetCache() {
+        _children = null
+    }
     override fun child(name: String): NativeFile =
-            file.findFile(name)?.let {
-                if (it.isFile) RealFileImpl(it) else RealDirectoryImpl(it)
-            } ?: NonExistingFileImpl(thisAsVarNativeFile, name)
+            children().firstOrNull { it.name == name }
+                    ?: NonExistingFileImpl(asDecsyncFile, name)
 
-    override fun children(): List<String> = file.listFiles().asList().mapNotNull { it.name }
-    override fun childrenFiles(): List<NativeFile> = file.listFiles().asList().map { file ->
-        if (file.isFile) RealFileImpl(file) else RealDirectoryImpl(file)
+    override fun children(): List<NativeFile> = _children ?: {
+        val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(uri, DocumentsContract.getDocumentId(uri))
+        val cr = context.contentResolver
+        val result = mutableListOf<NativeFile>()
+        cr.query(childrenUri, arrayOf(
+                DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                DocumentsContract.Document.COLUMN_MIME_TYPE,
+                DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+                DocumentsContract.Document.COLUMN_SIZE
+        ), null, null, null)?.use { cursor ->
+            while (cursor.moveToNext()) {
+                val documentId = cursor.getString(0)
+                val mimeType = cursor.getString(1)
+                val displayName = cursor.getString(2)
+                val childUri = DocumentsContract.buildDocumentUriUsingTree(uri, documentId)
+                result += if (mimeType == DocumentsContract.Document.MIME_TYPE_DIR) {
+                    RealDirectoryImpl(asDecsyncFile, context, childUri, displayName)
+                } else {
+                    val length = cursor.getLong(3).toInt()
+                    RealFileImpl(asDecsyncFile, context, childUri, displayName, length)
+                }
+            }
+        } ?: throw IOException("Could not get children for directory $this")
+        result
+    }().also { _children = it }
+
+    fun addChild(file: NativeFile) {
+        _children?.let { it.add(file) }
+    }
+    fun removeChild(file: NativeFile) {
+        _children?.let {  it.remove(file) }
     }
 
-    override fun delete() {
-        file.delete()
+    override fun delete(): NonExistingFile {
+        if (parent == null) {
+            throw IOException("Cannot delete root directory")
+        }
+
+        val cr = context.contentResolver
+        DocumentsContract.deleteDocument(cr, uri)
+        (parent.file as? RealDirectoryImpl)?.removeChild(this)
+        return NonExistingFileImpl(parent, name)
     }
 
-    override fun toString(): String = file.uri.toString()
+    override fun toString(): String = uri.toString()
 }
 
-class NonExistingFileImpl(val parent: VarNativeFile, val name: String) : NonExistingFile() {
-    private val thisAsVarNativeFile = VarNativeFile(this)
+@ExperimentalStdlibApi
+class NonExistingFileImpl(
+        val parent: DecsyncFile,
+        override val name: String
+) : NonExistingFile() {
+    private val asDecsyncFile = DecsyncFile(this)
 
-    override fun child(name: String): NativeFile = NonExistingFileImpl(thisAsVarNativeFile, name)
+    override fun child(name: String): NativeFile = NonExistingFileImpl(asDecsyncFile, name)
 
     override fun mkfile(): RealFile {
-        val parentDocumentFile = getParentDocumentFile()
-        val result = parentDocumentFile.findFile(name)
-        if (result != null) return RealFileImpl(result)
-        val documentFile = parentDocumentFile.createFile("", name) ?: throw IOException("Could not create file $name of parent $parentDocumentFile")
-        return RealFileImpl(documentFile)
+        val parentDir = createParentDir()
+        return when (val result = parentDir.child(name)) {
+            is RealFile -> result
+            is RealDirectory -> throw IOException("Directory $result used as file")
+            is NonExistingFile -> {
+                val cr = parentDir.context.contentResolver
+                val uri = DocumentsContract.createDocument(cr, parentDir.uri, "", name)
+                        ?: throw IOException("Could not create file $name of parent $parentDir")
+                RealFileImpl(parentDir.asDecsyncFile, parentDir.context, uri, name, 0)
+                        .also { parentDir.addChild(it) }
+            }
+        }
     }
 
-    private fun mkdir(): DocumentFile {
-        val parentDocumentFile = getParentDocumentFile()
-        val result = parentDocumentFile.findFile(name)
-        if (result != null) return result
-        return parentDocumentFile.createDirectory(name) ?: throw IOException("Could not create directory $name of parent $parentDocumentFile")
+    private fun mkdir(): RealDirectoryImpl {
+        val parentDir = createParentDir()
+        return when (val result = parentDir.child(name)) {
+            is RealFile -> throw IOException("File $result used as directory")
+            is RealDirectoryImpl -> result
+            is NonExistingFile -> {
+                val cr = parentDir.context.contentResolver
+                Log.d("parentDir.uri: ${parentDir.uri}")
+                Log.d("name: $name")
+                val uri = DocumentsContract.createDocument(cr, parentDir.uri, DocumentsContract.Document.MIME_TYPE_DIR, name)
+                        ?: throw IOException("Could not create file $name of parent $parentDir")
+                RealDirectoryImpl(parentDir.asDecsyncFile, parentDir.context, uri, name)
+                        .also { parentDir.addChild(it) }
+            }
+            else -> throw IOException("Non-standard file type found. This should never happen.")
+        }
     }
 
-    private fun getParentDocumentFile(): DocumentFile {
-        return when (val parentNativeFile = parent.nativeFile) {
-            is RealFileImpl -> throw IOException("Cannot create child of file $parent")
-            is RealDirectoryImpl -> parentNativeFile.file
-            is NonExistingFileImpl -> parentNativeFile.mkdir().also { parent.nativeFile = RealDirectoryImpl(it) }
+    private fun createParentDir(): RealDirectoryImpl {
+        return when (val parentNativeFile = parent.file) {
+            is RealFileImpl -> throw IOException("File $parent used as directory")
+            is RealDirectoryImpl -> parentNativeFile
+            is NonExistingFileImpl -> parentNativeFile.mkdir().also { parent.file = it }
             else -> throw IOException("Non-standard file type found. This should never happen.")
         }
     }
