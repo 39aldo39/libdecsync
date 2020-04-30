@@ -19,11 +19,11 @@
 package org.decsync.library
 
 import kotlinx.cinterop.*
-import kotlinx.io.IOException
 import platform.posix.*
 
 expect val openFlagsBinary: Int
-val createMode = S_IRWXU or S_IRWXG
+val createModeDir = S_IRWXU or S_IRGRP or S_IXGRP or S_IROTH or S_IXOTH
+val createModeFile = S_IRUSR or S_IWUSR or S_IRGRP or S_IROTH
 expect fun mkdirCustom(path: String, mode: Int)
 expect fun readCustom(fd: Int, buf: CValuesRef<*>?, len: Int)
 expect fun writeCustom(fd: Int, buf: CValuesRef<*>?, size: Int)
@@ -46,6 +46,7 @@ class RealFileImpl(private val path: String, override val name: String) : RealFi
     }
     override fun read(readBytes: Int): ByteArray {
         val fd = open(path, openFlagsBinary or O_RDONLY)
+        if (fd < 0) throw Exception("Failed to open $path")
         val len = length(fd)
         val buf = ByteArray(len - readBytes + 1)
         lseek(fd, readBytes.off_t(), SEEK_SET)
@@ -62,11 +63,13 @@ class RealFileImpl(private val path: String, override val name: String) : RealFi
             }
             return
         }
-        val flags = openFlagsBinary or O_CREAT or O_WRONLY or if (append) O_APPEND else 0
-        val fd = open(path, flags, createMode)
+        val flags = openFlagsBinary or O_CREAT or O_WRONLY or if (append) O_APPEND else O_TRUNC
+        val fd = open(path, flags, createModeFile)
+        if (fd < 0) throw Exception("Failed to open $path")
         text.usePinned { textPin ->
             writeCustom(fd, textPin.addressOf(0), text.size)
         }
+        close(fd)
     }
 
     override fun toString(): String = path
@@ -106,7 +109,7 @@ class NonExistingFileImpl(private val path: String, override val name: String) :
         val parentFile = getNativeFileFromPath(parentPath)
         if (parentFile !is NonExistingFile) return result
         parentFile.mkfile()
-        mkdirCustom(parentPath, createMode)
+        mkdirCustom(parentPath, createModeDir)
         return result
     }
 
@@ -121,7 +124,7 @@ fun getNativeFileFromPath(path: String, name: String = path.takeLastWhile { it !
         when (fileStat.st_mode.toInt() and S_IFMT) {
             S_IFREG -> RealFileImpl(path, name)
             S_IFDIR -> RealDirectoryImpl(path, name)
-            else -> throw IOException("Unknown file type for file $path")
+            else -> throw Exception("Unknown file type for file $path")
         }
     }
 }

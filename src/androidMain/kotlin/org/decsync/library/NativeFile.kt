@@ -55,6 +55,9 @@ class RealFileSaf(
         val mode = if (append) "wa" else "w"
         val cr = context.contentResolver
         cr.openOutputStream(uri, mode)?.use { output ->
+            if (!append) {
+                (output as FileOutputStream).channel.truncate(0)
+            }
             output.write(text)
         } ?: throw Exception("Could not open output stream for file $this")
         if (append)
