@@ -45,10 +45,12 @@ fun decsync(
         ownAppId: String
 ): Int {
     val decsyncDir = if (decsyncDirOrEmpty.isNullOrEmpty()) getDefaultDecsyncDir() else decsyncDirOrEmpty
+    val nativeDecsyncDir = getNativeFileFromPath(decsyncDir)
     val collection = if (collectionOrEmpty.isNullOrEmpty()) null else collectionOrEmpty
+    val localDir = getDecsyncSubdir(nativeDecsyncDir, syncType, collection).child("local", ownAppId)
     return try {
         decsync[0] = StableRef.create<Decsync<V>>(
-                Decsync(getNativeFileFromPath(decsyncDir), syncType, collection, ownAppId)
+                Decsync(nativeDecsyncDir, localDir, syncType, collection, ownAppId)
         ).asCPointer()
         0
     } catch (e: DecsyncException) {
@@ -168,25 +170,61 @@ fun executeStoredEntries(decsync: V,
                 extra)
 
 @ExperimentalStdlibApi
+@CName (externName = "decsync_so_execute_stored_entries_for_path_exact")
+fun executeStoredEntriesForPathExact(decsync: V,
+                                     path: CPath, len_path: Int,
+                                     extra: V,
+                                     keys: CArray<CString>, len_keys: Int) =
+        decsync.asStableRef<Decsync<V>>().get().executeStoredEntriesForPathExact(
+                toPath(path, len_path),
+                extra,
+                toList(keys, len_keys).map { parseJson(it.toKString()) })
+
+@ExperimentalStdlibApi
+@CName (externName = "decsync_so_execute_all_stored_entries_for_path_exact")
+fun executeAllStoredEntriesForPathExact(decsync: V,
+                                        path: CPath, len: Int,
+                                        extra: V) =
+        decsync.asStableRef<Decsync<V>>().get().executeStoredEntriesForPathExact(
+                toPath(path, len),
+                extra,
+                null)
+
+@ExperimentalStdlibApi
+@CName (externName = "decsync_so_execute_stored_entries_for_path_prefix")
+fun executeStoredEntriesForPathPrefix(decsync: V,
+                                      path: CPath, len_path: Int,
+                                      extra: V,
+                                      keys: CArray<CString>, len_keys: Int) =
+        decsync.asStableRef<Decsync<V>>().get().executeStoredEntriesForPathPrefix(
+                toPath(path, len_path),
+                extra,
+                toList(keys, len_keys).map { parseJson(it.toKString()) })
+
+@ExperimentalStdlibApi
+@CName (externName = "decsync_so_execute_all_stored_entries_for_path_prefix")
+fun executeAllStoredEntriesForPathPrefix(decsync: V,
+                                         path: CPath, len: Int,
+                                         extra: V) =
+        decsync.asStableRef<Decsync<V>>().get().executeStoredEntriesForPathPrefix(
+                toPath(path, len),
+                extra,
+                null)
+
+@ExperimentalStdlibApi
 @CName (externName = "decsync_so_execute_stored_entries_for_path")
 fun executeStoredEntriesForPath(decsync: V,
                                 path: CPath, len_path: Int,
                                 extra: V,
                                 keys: CArray<CString>, len_keys: Int) =
-        decsync.asStableRef<Decsync<V>>().get().executeStoredEntriesForPath(
-                toPath(path, len_path),
-                extra,
-                toList(keys, len_keys).map { parseJson(it.toKString()) })
+        executeStoredEntriesForPathPrefix(decsync, path, len_path, extra, keys, len_keys)
 
 @ExperimentalStdlibApi
 @CName (externName = "decsync_so_execute_all_stored_entries_for_path")
 fun executeAllStoredEntriesForPath(decsync: V,
                                    path: CPath, len: Int,
                                    extra: V) =
-        decsync.asStableRef<Decsync<V>>().get().executeStoredEntriesForPath(
-                toPath(path, len),
-                extra,
-                null)
+        executeAllStoredEntriesForPathPrefix(decsync, path, len, extra)
 
 @ExperimentalStdlibApi
 @CName(externName = "decsync_so_init_stored_entries")

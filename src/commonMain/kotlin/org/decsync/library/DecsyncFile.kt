@@ -18,8 +18,6 @@
 
 package org.decsync.library
 
-import kotlinx.io.IOException
-
 @ExperimentalStdlibApi
 class DecsyncFile(
         var file: NativeFile
@@ -36,7 +34,7 @@ class DecsyncFile(
         return DecsyncFile(file)
     }
 
-    fun child(names: Iterable<String>): DecsyncFile {
+    fun child(names: List<String>): DecsyncFile {
         var result = this
         for (name in names) {
             result = result.child(name)
@@ -44,7 +42,7 @@ class DecsyncFile(
         return result
     }
 
-    fun child(vararg names: String): DecsyncFile = child(names.asIterable())
+    fun child(vararg names: String): DecsyncFile = child(names.asList())
 
     fun readLines(readBytes: Int = 0): List<String> {
         return when (val file = file) {
@@ -52,20 +50,27 @@ class DecsyncFile(
                 byteArrayToString(file.read(readBytes))
                         .split('\n')
                         .filter { it.isNotBlank() }
-            is RealDirectory -> throw IOException("readLines called on directory $file")
+            is RealDirectory -> throw Exception("readLines called on directory $file")
             is NonExistingFile -> emptyList()
         }
     }
 
-    fun writeLines(lines: Iterable<String>, append: Boolean = false) {
+    fun writeLines(lines: List<String>, append: Boolean = false) {
+        val linesNotBlank = lines.filter { it.isNotBlank() }
+        if (linesNotBlank.isEmpty()) {
+            if (!append) {
+                delete()
+            }
+            return
+        }
         val fileReal = when (val file = file) {
             is RealFile -> file
-            is RealDirectory -> throw IOException("writeLines called on directory $file")
+            is RealDirectory -> throw Exception("writeLines called on directory $file")
             is NonExistingFile -> file.mkfile()
         }
         this.file = fileReal
         val builder = StringBuilder()
-        for (line in lines) {
+        for (line in linesNotBlank) {
             builder.append(line)
             builder.append('\n')
         }
@@ -74,10 +79,11 @@ class DecsyncFile(
 
     fun readText(): String? {
         val lines = readLines()
-        if (lines.size != 1) {
-            return null
+        return when (lines.size) {
+            0 -> null
+            1 -> lines[0]
+            else -> throw Exception("Multiple lines read as text: $lines")
         }
-        return lines[0]
     }
 
     fun writeText(text: String) = writeLines(listOf(text))
@@ -85,7 +91,7 @@ class DecsyncFile(
     fun length(): Int {
         return when (val file = file) {
             is RealFile -> file.length()
-            is RealDirectory -> throw IOException("length called on directory $file")
+            is RealDirectory -> throw Exception("length called on directory $file")
             is NonExistingFile -> 0
         }
     }
@@ -176,7 +182,7 @@ class DecsyncFile(
 
     fun listDirectories(): List<String> {
         return when (val file = file) {
-            is RealFile -> throw IOException("listDirectory called on file $file")
+            is RealFile -> throw Exception("listDirectory called on file $file")
             is RealDirectory -> file.children()
                     .filter { it.name[0] != '.' && it is RealDirectory }
                     .mapNotNull { Url.decode(it.name) }

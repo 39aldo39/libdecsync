@@ -18,8 +18,6 @@
 
 package org.decsync.library
 
-import kotlinx.io.IOException
-
 sealed class NativeFile {
     abstract val name: String
     abstract fun child(name: String): NativeFile
@@ -27,7 +25,7 @@ sealed class NativeFile {
 }
 
 abstract class RealFile : NativeFile() {
-    override fun child(name: String): NativeFile = throw IOException("child called on file $this")
+    override fun child(name: String): NativeFile = throw Exception("child called on file $this")
     abstract fun delete(): NonExistingFile
     abstract fun length(): Int
     abstract fun read(readBytes: Int = 0): ByteArray

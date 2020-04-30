@@ -236,7 +236,64 @@ inline static void decsync_execute_stored_entries(Decsync decsync, DecsyncStored
  * Consequently, it can be slightly more convenient since the path has to be specified just once.
  *
  * @param decsync the [Decsync] instance to use.
- * @param path path to the entries to executes.
+ * @param path exact path to the entries to executes.
+ * @param len_path length of [path].
+ * @param extra extra userdata passed to the listener.
+ * @param keys array of keys to execute, where every key is a JSON-serialized string.
+ * @param len_keys length of [keys].
+ */
+inline static void decsync_execute_stored_entries_for_path_exact(Decsync decsync, const char** path, int len_path, void* extra, const char** keys, int len_keys) {
+    decsync_so_execute_stored_entries_for_path_exact(decsync, path, len_path, extra, keys, len_keys);
+}
+
+/**
+ * Like [decsync_execute_stored_entries_for_path_exact], but ignores the key and executes all
+ * entries.
+ *
+ * @param decsync the [Decsync] instance to use.
+ * @param path exact path of null-terminated strings to the entries to execute.
+ * @param len length of [path].
+ * @param extra extra userdata passed to the listener.
+ */
+inline static void decsync_execute_all_stored_entries_for_path_exact(Decsync decsync, const char** path, int len, void* extra) {
+    decsync_so_execute_all_stored_entries_for_path_exact(decsync, path, len, extra);
+}
+
+/**
+ * Like [decsync_execute_stored_entries_for_path_exact], but the path parameter is replaced by the
+ * [prefix] parameter. This means that any path that is an extension of [prefix] is considered, but
+ * it also makes the method less efficient.
+ *
+ * @param decsync the [Decsync] instance to use.
+ * @param path path prefix to the entries to executes.
+ * @param len_path length of [path].
+ * @param extra extra userdata passed to the listener.
+ * @param keys array of keys to execute, where every key is a JSON-serialized string.
+ * @param len_keys length of [keys].
+ */
+inline static void decsync_execute_stored_entries_for_path_prefix(Decsync decsync, const char** path, int len_path, void* extra, const char** keys, int len_keys) {
+    decsync_so_execute_stored_entries_for_path_prefix(decsync, path, len_path, extra, keys, len_keys);
+}
+
+/**
+ * Like [decsync_execute_stored_entries_for_path_prefix], but ignores the key and executes all
+ * entries.
+ *
+ * @param decsync the [Decsync] instance to use.
+ * @param path path prefix of null-terminated strings to the entries to execute.
+ * @param len length of [path].
+ * @param extra extra userdata passed to the listener.
+ */
+inline static void decsync_execute_all_stored_entries_for_path_prefix(Decsync decsync, const char** path, int len, void* extra) {
+    decsync_so_execute_all_stored_entries_for_path_prefix(decsync, path, len, extra);
+}
+
+/**
+ * Deprecated. Consider [decsync_execute_stored_entries_for_path_exact] or
+ * [decsync_execute_stored_entries_for_path_prefix]. Alias to the latter one for compatibility.
+ *
+ * @param decsync the [Decsync] instance to use.
+ * @param path path prefix to the entries to executes.
  * @param len_path length of [path].
  * @param extra extra userdata passed to the listener.
  * @param keys array of keys to execute, where every key is a JSON-serialized string.
@@ -247,10 +304,11 @@ inline static void decsync_execute_stored_entries_for_path(Decsync decsync, cons
 }
 
 /**
- * Like [decsync_execute_stored_entries_for_path], but ignores the key and executes all entries.
+ * Deprecated. Consider [decsync_execute_all_stored_entries_for_path_exact] or
+ * [decsync_execute_all_stored_entries_for_path_prefix]. Alias to the latter one for compatibility.
  *
  * @param decsync the [Decsync] instance to use.
- * @param path path of null-terminated strings to the entries to execute.
+ * @param path path prefix of null-terminated strings to the entries to execute.
  * @param len length of [path].
  * @param extra extra userdata passed to the listener.
  */

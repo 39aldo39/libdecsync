@@ -19,6 +19,7 @@
 package org.decsync.library
 
 import kotlinx.cinterop.*
+import platform.linux.timeb
 import platform.posix.*
 
 actual fun Int.off_t(): off_t = this.toLong()

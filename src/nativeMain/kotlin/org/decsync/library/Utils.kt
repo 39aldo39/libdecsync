@@ -47,3 +47,6 @@ actual fun currentDatetime(): String {
 }
 
 actual fun byteArrayToString(input: ByteArray): String = input.toKString()
+
+// Native is fast enough
+actual fun async(f: () -> Unit) = f()

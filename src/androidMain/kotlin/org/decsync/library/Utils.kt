@@ -18,8 +18,8 @@
 
 package org.decsync.library
 
+import android.os.AsyncTask
 import android.os.Build
-import android.os.Environment
 import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.*
@@ -34,3 +34,5 @@ private val iso8601Format: DateFormat =
 
 @ExperimentalStdlibApi
 actual fun byteArrayToString(input: ByteArray): String = input.decodeToString()
+
+actual fun async(f: () -> Unit) = AsyncTask.execute(f)

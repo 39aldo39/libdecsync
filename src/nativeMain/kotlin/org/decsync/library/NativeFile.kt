@@ -57,12 +57,6 @@ class RealFileImpl(private val path: String, override val name: String) : RealFi
         return buf
     }
     override fun write(text: ByteArray, append: Boolean) {
-        if (text.isEmpty()) {
-            if (!append) {
-                delete()
-            }
-            return
-        }
         val flags = openFlagsBinary or O_CREAT or O_WRONLY or if (append) O_APPEND else O_TRUNC
         val fd = open(path, flags, createModeFile)
         if (fd < 0) throw Exception("Failed to open $path")

@@ -21,3 +21,4 @@ package org.decsync.library
 expect fun getDeviceName(): String
 expect fun currentDatetime(): String
 expect fun byteArrayToString(input: ByteArray): String
+expect fun async(f: () -> Unit)
