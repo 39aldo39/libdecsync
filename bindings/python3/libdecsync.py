@@ -100,6 +100,22 @@ _execute_stored_entries_c = _libdecsync.decsync_so_execute_stored_entries
 _execute_stored_entries_c.argtypes = [c_void_p, POINTER(c_void_p), c_int, py_object]
 _execute_stored_entries_c.restype = None
 
+_execute_stored_entries_for_path_exact_c = _libdecsync.decsync_so_execute_stored_entries_for_path_exact
+_execute_stored_entries_for_path_exact_c.argtypes = [c_void_p, POINTER(c_char_p), c_int, py_object, POINTER(c_char_p), c_int]
+_execute_stored_entries_for_path_exact_c.restype = None
+
+_execute_all_stored_entries_for_path_exact_c = _libdecsync.decsync_so_execute_all_stored_entries_for_path_exact
+_execute_all_stored_entries_for_path_exact_c.argtypes = [c_void_p, POINTER(c_char_p), c_int, py_object]
+_execute_all_stored_entries_for_path_exact_c.restype = None
+
+_execute_stored_entries_for_path_prefix_c = _libdecsync.decsync_so_execute_stored_entries_for_path_prefix
+_execute_stored_entries_for_path_prefix_c.argtypes = [c_void_p, POINTER(c_char_p), c_int, py_object, POINTER(c_char_p), c_int]
+_execute_stored_entries_for_path_prefix_c.restype = None
+
+_execute_all_stored_entries_for_path_prefix_c = _libdecsync.decsync_so_execute_all_stored_entries_for_path_prefix
+_execute_all_stored_entries_for_path_prefix_c.argtypes = [c_void_p, POINTER(c_char_p), c_int, py_object]
+_execute_all_stored_entries_for_path_prefix_c.restype = None
+
 _execute_stored_entries_for_path_c = _libdecsync.decsync_so_execute_stored_entries_for_path
 _execute_stored_entries_for_path_c.argtypes = [c_void_p, POINTER(c_char_p), c_int, py_object, POINTER(c_char_p), c_int]
 _execute_stored_entries_for_path_c.restype = None
@@ -355,11 +371,49 @@ class Decsync:
         stored_entries_c = _c_array(c_void_p, list(map(StoredEntry.ptr, stored_entries)))
         _execute_stored_entries_c(self.ptr, *stored_entries_c, extra)
 
-    def execute_stored_entries_for_path(self, path, extra, keys=None):
+    def execute_stored_entries_for_path_exact(self, path, extra, keys=None):
         """
         Like [decsync_execute_stored_entries], but only allows the stored entries to have the same path.
         Consequently, it can be slightly more convenient since the path has to be specified just once.
 
+        :param path: exact path to the entries to execute.
+        :type path: list(str)
+        :param extra: extra userdata passed to the listener.
+        :param keys: list of keys to execute, where every key is a JSON-serialized string. When None, all keys are executed.
+        :type keys: list(json) or None
+
+        """
+        if keys is None:
+            _execute_all_stored_entries_for_path_exact_c(self.ptr, *_c_path(path), extra)
+        else:
+            keys_c = _c_array(c_char_p, [json.dumps(key).encode() for key in keys])
+            _execute_stored_entries_for_path_exact_c(self.ptr, *_c_path(path), extra, *keys_c)
+
+    def execute_stored_entries_for_path_prefix(self, path, extra, keys=None):
+        """
+        Like [decsync_execute_stored_entries_for_path_exact], but the path parameter is replaced by the
+        [prefix] parameter. This means that any path that is an extension of [prefix] is considered, but
+        it also makes the method less efficient.
+
+        :param path: path prefix to the entries to execute.
+        :type path: list(str)
+        :param extra: extra userdata passed to the listener.
+        :param keys: list of keys to execute, where every key is a JSON-serialized string. When None, all keys are executed.
+        :type keys: list(json) or None
+
+        """
+        if keys is None:
+            _execute_all_stored_entries_for_path_prefix_c(self.ptr, *_c_path(path), extra)
+        else:
+            keys_c = _c_array(c_char_p, [json.dumps(key).encode() for key in keys])
+            _execute_stored_entries_for_path_prefix_c(self.ptr, *_c_path(path), extra, *keys_c)
+
+    def execute_stored_entries_for_path(self, path, extra, keys=None):
+        """
+        Deprecated. Consider [decsync_execute_stored_entries_for_path_exact] or
+        [decsync_execute_stored_entries_for_path_prefix]. Alias to the latter one for compatibility.
+
+        :param path: path prefix to the entries to execute.
         :type path: list(str)
         :param extra: extra userdata passed to the listener.
         :param keys: list of keys to execute, where every key is a JSON-serialized string. When None, all keys are executed.
