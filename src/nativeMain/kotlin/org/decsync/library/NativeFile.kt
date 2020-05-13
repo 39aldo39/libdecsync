@@ -22,8 +22,8 @@ import kotlinx.cinterop.*
 import platform.posix.*
 
 expect val openFlagsBinary: Int
-val createModeDir = S_IRWXU or S_IRGRP or S_IXGRP or S_IROTH or S_IXOTH
-val createModeFile = S_IRUSR or S_IWUSR or S_IRGRP or S_IROTH
+const val createModeDir = S_IRWXU or S_IRGRP or S_IXGRP or S_IROTH or S_IXOTH
+const val createModeFile = S_IRUSR or S_IWUSR or S_IRGRP or S_IROTH
 expect fun mkdirCustom(path: String, mode: Int)
 expect fun readCustom(fd: Int, buf: CValuesRef<*>?, len: Int)
 expect fun writeCustom(fd: Int, buf: CValuesRef<*>?, size: Int)

@@ -604,12 +604,12 @@ private fun getDecsyncInfoOrDefault(decsyncDir: NativeFile): JsonObject =
 
 @ExperimentalStdlibApi
 private fun getDecsyncVersion(info: Map<String, JsonElement>): DecsyncVersion? {
-    try {
-        val version = info["version"]?.int ?: return null
-        return DecsyncVersion.fromInt(version) ?: throw getUnsupportedVersionException(version, SUPPORTED_VERSION)
+    val version = try {
+        info["version"]?.int
     } catch (e: Exception) {
         throw getInvalidInfoException(e)
-    }
+    } ?: return null
+    return DecsyncVersion.fromInt(version) ?: throw getUnsupportedVersionException(version, SUPPORTED_VERSION)
 }
 
 @ExperimentalStdlibApi
