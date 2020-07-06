@@ -492,9 +492,12 @@ fun listDecsyncCollections(decsyncDir: NativeFile, syncType: String): List<Strin
 /**
  * Returns the appId of the current device and application combination.
  *
+ * Note: on Android the device name is based on the model of the device, which may not be unique.
+ * Therefore, it is recommended to also generate a random [id].
+ *
  * @param appName the name of the application.
  * @param id an optional integer (between 0 and 100000 exclusive) to distinguish different instances
- * on the same device and application.
+ * with the same device and application names.
  */
 fun getAppId(appName: String, id: Int? = null): String {
     val appId = "${getDeviceName()}-$appName"
