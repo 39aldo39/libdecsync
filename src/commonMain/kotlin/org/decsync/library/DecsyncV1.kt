@@ -71,7 +71,7 @@ internal class DecsyncV1<T>(
         updateStoredEntries(entriesLocation, entries.toMutableList())
     }
 
-    override fun executeAllNewEntries(extra: T) {
+    override fun executeAllNewEntries(optExtra: OptExtra<T>) {
         val newEntriesDir = dir.child("new-entries")
         newEntriesDir.resetCache()
         val readBytesDir = dir.child("read-bytes", ownAppId)
@@ -80,12 +80,12 @@ internal class DecsyncV1<T>(
             newEntriesDir.child(appId)
                     .listFilesRecursiveRelative(readBytesDir.child(appId))
                     .map { getNewEntriesLocation(it, appId) }
-                    .forEach { executeEntriesLocation(it, extra) }
+                    .forEach { executeEntriesLocation(it, optExtra) }
         }
     }
 
     private fun executeEntriesLocation(entriesLocation: EntriesLocation,
-                                       extra: T,
+                                       optExtra: OptExtra<T>,
                                        keys: List<JsonElement>? = null) {
         val readBytes = entriesLocation.readBytesFile?.readText()?.toIntOrNull() ?: 0
         val size = entriesLocation.newEntriesFile.length()
@@ -99,18 +99,20 @@ internal class DecsyncV1<T>(
                 .groupBy { it.key }.values
                 .map { it.maxBy { it.datetime }!! }
                 .toMutableList()
-        executeEntries(entriesLocation, entries, extra)
+        executeEntries(entriesLocation, entries, optExtra)
     }
 
-    private fun executeEntries(entriesLocation: EntriesLocation, entries: MutableList<Decsync.Entry>, extra: T) {
+    private fun executeEntries(entriesLocation: EntriesLocation, entries: MutableList<Decsync.Entry>, optExtra: OptExtra<T>) {
         updateStoredEntries(entriesLocation, entries)
 
-        val listener = listeners.firstOrNull { it.matchesPath(entriesLocation.path) }
-        if (listener == null) {
-            Log.e("Unknown action for path ${entriesLocation.path}")
-            return
+        if (optExtra is WithExtra) {
+            val extra = optExtra.value
+            val listener = listeners.firstOrNull { it.matchesPath(entriesLocation.path) } ?: run {
+                Log.e("Unknown action for path ${entriesLocation.path}")
+                return
+            }
+            listener.onEntriesUpdate(entriesLocation.path, entries, extra)
         }
-        listener.onEntriesUpdate(entriesLocation.path, entries, extra)
     }
 
     private fun updateStoredEntries(entriesLocation: EntriesLocation, entries: MutableList<Decsync.Entry>) {
@@ -174,26 +176,8 @@ internal class DecsyncV1<T>(
                 .listFilesRecursiveRelative()
                 .map { getStoredEntriesLocation(path + it) }
                 .forEach { entriesLocation ->
-                    executeEntriesLocation(entriesLocation, extra, keys)
+                    executeEntriesLocation(entriesLocation, WithExtra(extra), keys)
                 }
-    }
-
-    override fun initStoredEntries() {
-        // Get the most up-to-date appId
-        val otherAppId = latestAppId()
-
-        // Copy the stored files and update the read bytes
-        if (otherAppId != ownAppId) {
-            val ownStoredEntriesDir = dir.child("stored-entries", ownAppId)
-            val otherStoredEntriesDir = dir.child("stored-entries", otherAppId)
-            ownStoredEntriesDir.delete()
-            otherStoredEntriesDir.copy(ownStoredEntriesDir)
-
-            val ownReadBytesDir = dir.child("read-bytes", ownAppId)
-            val otherReadBytesDir = dir.child("read-bytes", otherAppId)
-            ownReadBytesDir.delete()
-            otherReadBytesDir.copy(ownReadBytesDir)
-        }
     }
 
     override fun latestAppId(): String {

@@ -287,7 +287,7 @@ class Decsync<T> internal constructor(
             return
         }
         Log.d("Execute all new entries")
-        instance.executeAllNewEntries(extra)
+        instance.executeAllNewEntries(WithExtra(extra))
 
         if (!disableMaintenance) {
             val oldVersion = version
@@ -305,7 +305,7 @@ class Decsync<T> internal constructor(
                 instance = newDecsync
 
                 // Also get the updates in the new DecSync version
-                instance.executeAllNewEntries(extra)
+                instance.executeAllNewEntries(WithExtra(extra))
             }
 
             val lastActive = localInfo["last-active"]?.content
@@ -382,7 +382,7 @@ class Decsync<T> internal constructor(
      */
     fun initStoredEntries() {
         isInInit = true
-        instance.initStoredEntries()
+        instance.executeAllNewEntries(NoExtra())
         isInInit = false
     }
 
@@ -507,6 +507,10 @@ fun getAppId(appName: String, id: Int? = null): String {
     }
 }
 
+internal sealed class OptExtra<T>
+internal class NoExtra<T> : OptExtra<T>()
+internal data class WithExtra<T>(val value: T): OptExtra<T>()
+
 @ExperimentalStdlibApi
 internal abstract class DecsyncInst<T> {
     abstract val decsyncDir: NativeFile
@@ -531,7 +535,7 @@ internal abstract class DecsyncInst<T> {
 
     abstract fun setEntriesForPath(path: List<String>, entries: List<Decsync.Entry>)
 
-    abstract fun executeAllNewEntries(extra: T)
+    abstract fun executeAllNewEntries(optExtra: OptExtra<T>)
 
     open fun executeStoredEntry(path: List<String>, key: JsonElement, extra: T) =
             executeStoredEntriesForPathExact(path, extra, listOf(key))
@@ -550,8 +554,6 @@ internal abstract class DecsyncInst<T> {
             prefix: List<String>,
             extra: T,
             keys: List<JsonElement>? = null)
-
-    abstract fun initStoredEntries()
 
     abstract fun latestAppId(): String
 
