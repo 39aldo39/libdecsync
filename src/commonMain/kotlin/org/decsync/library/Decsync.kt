@@ -381,6 +381,7 @@ class Decsync<T> internal constructor(
      * followed with a call to [executeStoredEntries].
      */
     fun initStoredEntries() {
+        Log.d("Init stored entries")
         isInInit = true
         instance.executeAllNewEntries(NoExtra())
         isInInit = false
