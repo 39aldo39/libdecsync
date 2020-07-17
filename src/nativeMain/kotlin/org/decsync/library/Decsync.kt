@@ -289,6 +289,10 @@ fun getAppIdC(appName: String, appId: CString, len: Int) =
 fun getAppIdWithIdC(appName: String, id: Int, appId: CString, len: Int) =
         fillBuffer(getAppId(appName, id), appId, len)
 
+@CName(externName = "decsync_so_get_default_dir")
+fun getDefaultDirC(decsync_dir: CString, len: Int) =
+        fillBuffer(getDefaultDecsyncDir(), decsync_dir, len)
+
 private fun <T : CPointer<*>> toList(array: CArray<T>, len: Int): List<T> {
     val list = mutableListOf<T>()
     for (i in 0 until len) {

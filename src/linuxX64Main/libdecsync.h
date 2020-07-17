@@ -431,6 +431,21 @@ inline static void decsync_get_app_id_with_id(const char* app_name, int id, char
     decsync_so_get_app_id_with_id(app_name, id, app_id, len);
 }
 
+/**
+ * Returns the default DecSync dir. This is equal to the environment variable $DECSYNC_DIR, if
+ * defined. Otherwise, it is equal to the 'decsync' (Linux) / 'DecSync' (Windows) subdirectory in
+ * the data home directory, which in turn is equal to:
+ * - Linux: $XDG_DATA_HOME, if defined. Otherwise $HOME/.local/share.
+ * - Windows: $USERPROFILE.
+ *
+ * @param decsync_dir buffer to which the DecSync dir is written.
+ * @param len length of the buffer [decsync_dir], including terminating null character. It should be
+ *   at least 256. If it is too short, the result is truncated.
+ */
+inline static void decsync_get_default_dir(char* decsync_dir, int len) {
+    decsync_so_get_default_dir(decsync_dir, len);
+}
+
 #ifdef __cplusplus
 }  /* extern "C" */
 #endif
