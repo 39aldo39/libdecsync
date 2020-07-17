@@ -88,4 +88,7 @@ namespace Decsync {
 
 	[CCode (cname = "decsync_get_app_id_with_id")]
 	public void get_app_id_with_id(string app_name, int id, char[] app_id);
+
+	[CCode (cname = "decsync_get_default_dir")]
+	public void get_default_dir(char[] decsync_dir);
 }
