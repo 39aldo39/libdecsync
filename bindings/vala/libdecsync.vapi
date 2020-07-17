@@ -51,7 +51,13 @@ namespace Decsync {
 		public void execute_all_new_entries(T extra);
 		public void execute_stored_entry(string[] path, string key, T extra);
 		public void execute_stored_entries(StoredEntry[] stored_entries, T extra);
+		public void execute_stored_entries_for_path_exact(string[] path, T extra, string[] keys);
+		public void execute_all_stored_entries_for_path_exact(string[] path, T extra);
+		public void execute_stored_entries_for_path_prefix(string[] path, T extra, string[] keys);
+		public void execute_all_stored_entries_for_path_prefix(string[] path, T extra);
+		[Version (deprecated = true)]
 		public void execute_stored_entries_for_path(string[] path, T extra, string[] keys);
+		[Version (deprecated = true)]
 		public void execute_all_stored_entries_for_path(string[] path, T extra);
 		public void init_stored_entries();
 		public void latest_app_id(char[] app_id);
@@ -62,6 +68,20 @@ namespace Decsync {
 
 	[CCode (cname = "decsync_check_decsync_info")]
 	public int check_decsync_info(string? decsync_dir);
+
+	[CCode (cname = "decsync_list_collections")]
+	private int _list_collections(string? decsync_dir, string sync_type, [CCode (array_length = false)] char[] collections, int max_len);
+
+	[CCode (cname = "decsync_list_collections_vala")]
+	public string[] list_collections(string? decsync_dir, string sync_type, int max_len = 256) {
+		string[] result = {};
+		var collections = new char[max_len*256];
+		var len = _list_collections(decsync_dir, sync_type, collections, max_len);
+		for (int i = 0; i < len; i++) {
+			result += (string)collections[i*256:(i+1)*256];
+		}
+		return result;
+	}
 
 	[CCode (cname = "decsync_get_app_id")]
 	public void get_app_id(string app_name, char[] app_id);
