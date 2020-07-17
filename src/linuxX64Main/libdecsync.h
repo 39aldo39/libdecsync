@@ -370,6 +370,8 @@ inline static int decsync_check_decsync_info(const char* decsync_dir) {
 }
 
 /**
+ * Deprecated. Use [decsync_list_collections] instead.
+ *
  * Returns a list of DecSync collections inside a [decsync_dir] for a [sync_type]. This function
  * does not apply for sync types with single instances.
  *
@@ -383,6 +385,24 @@ inline static int decsync_check_decsync_info(const char* decsync_dir) {
  */
 inline static int decsync_list_decsync_collections(const char* decsync_dir, const char* sync_type, const char** collections, int max_len) {
     return decsync_so_list_decsync_collections(decsync_dir, sync_type, collections, max_len);
+}
+
+/**
+ * Returns a list of DecSync collections inside a [decsync_dir] for a [sync_type]. This function
+ * does not apply for sync types with single instances.
+ *
+ * @param decsync_dir the path to the main DecSync directory.
+ * @param sync_type the type of data to sync. For example, "contacts" or "calendars".
+ * @param collections buffer to which the resulting collections are written. The start of collection
+ *   i is at position i*256 (with 0-based indexing) and is null-terminated. This means that the
+ *   buffer needs to have a length of max_len*256. It may also be possible to use multidimensional
+ *   arrays, e.g. in C one can simply allocate 'char collections[max_len][256]'.
+ * @param max_len maximum number of names written to [collections]. If there are more collections,
+ *   only some are written to the buffer.
+ * @return the number of written collection identifiers to [collections].
+ */
+inline static int decsync_list_collections(const char* decsync_dir, const char* sync_type, char collections[][256], int max_len) {
+    return decsync_so_list_collections(decsync_dir, sync_type, collections, max_len);
 }
 
 /**

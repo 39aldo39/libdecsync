@@ -269,6 +269,18 @@ fun listDecsyncCollectionsC(decsyncDirOrEmpty: String?, syncType: String, collec
     return len
 }
 
+@ExperimentalStdlibApi
+@CName(externName = "decsync_so_list_collections")
+fun listCollectionsC(decsyncDirOrEmpty: String?, syncType: String, collections: CString, max_len: Int): Int {
+    val decsyncDir = if (decsyncDirOrEmpty.isNullOrEmpty()) getDefaultDecsyncDir() else decsyncDirOrEmpty
+    val names = listDecsyncCollections(getNativeFileFromPath(decsyncDir), syncType)
+    val len = min(names.size, max_len)
+    for (i in 0 until len) {
+        fillBuffer(names[i], (collections + i*256)!!, 256)
+    }
+    return len
+}
+
 @CName(externName = "decsync_so_get_app_id")
 fun getAppIdC(appName: String, appId: CString, len: Int) =
         fillBuffer(getAppId(appName, null), appId, len)
