@@ -421,7 +421,7 @@ class Decsync<T> internal constructor(
          * Returns the most up-to-date values stored in the path `["info"]`, in the given DecSync
          * dir [decsyncDir], sync type [syncType] and collection [collection].
          */
-        internal fun getStaticInfo(decsyncDir: NativeFile, syncType: String, collection: String?): Map<JsonElement, JsonElement> {
+        fun getStaticInfo(decsyncDir: NativeFile, syncType: String, collection: String?): Map<JsonElement, JsonElement> {
             Log.d("Get static info in $decsyncDir for syncType $syncType and collection $collection")
             val obj = getDecsyncInfoOrDefault(decsyncDir)
             val version = getDecsyncVersion(obj)!!

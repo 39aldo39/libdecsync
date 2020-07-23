@@ -32,14 +32,24 @@ actual fun getUnsupportedVersionException(requiredVersion: Int, supportedVersion
 
 @ExperimentalStdlibApi
 fun <T> Decsync(
+        decsyncDir: NativeFile,
+        syncType: String,
+        collection: String?,
+        ownAppId: String
+): Decsync<T> {
+    val localDir = getDecsyncSubdir(decsyncDir, syncType, collection).child("local", ownAppId)
+    return Decsync(decsyncDir, localDir, syncType, collection, ownAppId)
+}
+
+@ExperimentalStdlibApi
+fun <T> Decsync(
         decsyncDir: File,
         syncType: String,
         collection: String?,
         ownAppId: String
 ): Decsync<T> {
     val nativeDecsyncDir = nativeFileFromFile(decsyncDir)
-    val localDir = getDecsyncSubdir(nativeDecsyncDir, syncType, collection).child("local", ownAppId)
-    return Decsync(nativeDecsyncDir, localDir, syncType, collection, ownAppId)
+    return Decsync(nativeDecsyncDir, syncType, collection, ownAppId)
 }
 
 @ExperimentalStdlibApi
@@ -52,8 +62,7 @@ fun <T> Decsync(
 ): Decsync<T> {
     checkUriPermissions(context, decsyncDir)
     val nativeDecsyncDir = nativeFileFromDirUri(context, decsyncDir)
-    val localDir = getDecsyncSubdir(nativeDecsyncDir, syncType, collection).child("local", ownAppId)
-    return Decsync(nativeDecsyncDir, localDir, syncType, collection, ownAppId)
+    return Decsync(nativeDecsyncDir, syncType, collection, ownAppId)
 }
 
 @ExperimentalStdlibApi
@@ -135,7 +144,7 @@ fun Decsync.Companion.getActiveApps(
     return getActiveApps(nativeDecsyncDir, syncType, collection)
 }
 
-private fun checkUriPermissions(context: Context, uri: Uri) {
+fun checkUriPermissions(context: Context, uri: Uri) {
     if (context.checkCallingOrSelfUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) != PackageManager.PERMISSION_GRANTED ||
             context.checkCallingOrSelfUriPermission(uri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION) != PackageManager.PERMISSION_GRANTED) {
         throw InsufficientAccessException()
