@@ -24,26 +24,29 @@ import kotlin.native.concurrent.SharedImmutable
 @SharedImmutable
 val json = Json(JsonConfiguration.Stable)
 
-const val SUPPORTED_VERSION = 1
+const val SUPPORTED_VERSION = 2
 const val DEFAULT_VERSION = 1
 
 enum class DecsyncVersion {
-    V1;
+    V1, V2;
 
     fun toInt(): Int =
             when (this) {
                 V1 -> 1
+                V2 -> 2
             }
 
     override fun toString(): String =
             when (this) {
                 V1 -> "v1"
+                V2 -> "v2"
             }
 
     companion object {
         fun fromInt(input: Int): DecsyncVersion? =
                 when (input) {
                     1 -> V1
+                    2 -> V2
                     else -> null
                 }
     }
@@ -136,6 +139,7 @@ class Decsync<T> internal constructor(
     private fun <V> getInstance(decsyncVersion: DecsyncVersion): DecsyncInst<V> {
         return when (decsyncVersion) {
             DecsyncVersion.V1 -> DecsyncV1(decsyncDir, localDir, syncType, collection, ownAppId)
+            DecsyncVersion.V2 -> DecsyncV2(decsyncDir, localDir, syncType, collection, ownAppId)
         }
     }
 
@@ -395,6 +399,7 @@ class Decsync<T> internal constructor(
 
     private fun getLatestOwnDecsyncVersion(): DecsyncVersion? {
         val subdir = getDecsyncSubdir(decsyncDir, syncType, collection)
+        if (subdir.child("v2", ownAppId).file is RealDirectory) return DecsyncVersion.V2
         if (subdir.child("stored-entries", ownAppId).file is RealDirectory) return DecsyncVersion.V1
         return null
     }
@@ -429,6 +434,9 @@ class Decsync<T> internal constructor(
             val info = mutableMapOf<JsonElement, JsonElement>()
             val datetimes = mutableMapOf<JsonElement, String>()
             DecsyncV1.getStaticInfo(decsyncDir, syncType, collection, info, datetimes)
+            if (version >= DecsyncVersion.V2) {
+                DecsyncV2.getStaticInfo(decsyncDir, syncType, collection, info, datetimes)
+            }
             return info
         }
 
@@ -436,6 +444,7 @@ class Decsync<T> internal constructor(
             fun delete(decsyncDir: NativeFile, syncType: String, collection: String?) {
                 when (version) {
                     DecsyncVersion.V1 -> DecsyncV1.deleteApp(decsyncDir, syncType, collection, appId)
+                    DecsyncVersion.V2 -> DecsyncV2.deleteApp(decsyncDir, syncType, collection, appId)
                 }
             }
 
@@ -455,6 +464,16 @@ class Decsync<T> internal constructor(
             for (appId in appIdsV1) {
                 val lastActive = infoV1[JsonLiteral("last-active-$appId")]?.content
                 appDatas += AppData(appId, lastActive, DecsyncVersion.V1)
+            }
+
+            // Version 2
+            if (version >= DecsyncVersion.V2) {
+                val appIdsV2 = DecsyncV2.getActiveApps(decsyncDir, syncType, collection)
+                val infoV2 = DecsyncV2.getStaticInfo(decsyncDir, syncType, collection)
+                for (appId in appIdsV2) {
+                    val lastActive = infoV2[JsonLiteral("last-active-$appId")]?.content
+                    appDatas += AppData(appId, lastActive, DecsyncVersion.V2)
+                }
             }
 
             appDatas.sortWith(
