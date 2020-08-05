@@ -19,6 +19,8 @@
 package org.decsync.library
 
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.DocumentsContract
 import java.io.File
@@ -189,11 +191,21 @@ class NonExistingFileSaf(
 
 /**
  * Returns a [NativeFile] given a document tree [uri] from SAF with a [context].
+ *
+ * @throws InsufficientAccessException if there is insufficient access to the [uri].
  */
 @ExperimentalStdlibApi
 fun nativeFileFromDirUri(context: Context, uri: Uri): NativeFile {
+    checkUriPermissions(context, uri)
     val name = DecsyncPrefUtils.getNameFromUri(context, uri)
     return RealDirectorySaf(null, context, uri, name)
+}
+
+fun checkUriPermissions(context: Context, uri: Uri) {
+    if (context.checkCallingOrSelfUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) != PackageManager.PERMISSION_GRANTED ||
+            context.checkCallingOrSelfUriPermission(uri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION) != PackageManager.PERMISSION_GRANTED) {
+        throw InsufficientAccessException()
+    }
 }
 
 // Implementations using a traditional file

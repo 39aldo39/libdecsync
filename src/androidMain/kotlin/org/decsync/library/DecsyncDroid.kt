@@ -5,7 +5,6 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.AsyncTask
 import android.os.Build
@@ -74,6 +73,8 @@ fun <T> Decsync(
 
 /**
  * Instantiates a [Decsync] object using a [Uri] from SAF. See also [Decsync].
+ *
+ * @throws InsufficientAccessException if there is insufficient access to the [uri].
  */
 @ExperimentalStdlibApi
 fun <T> Decsync(
@@ -83,7 +84,6 @@ fun <T> Decsync(
         collection: String?,
         ownAppId: String
 ): Decsync<T> {
-    checkUriPermissions(context, decsyncDir)
     val nativeDecsyncDir = nativeFileFromDirUri(context, decsyncDir)
     return Decsync(nativeDecsyncDir, syncType, collection, ownAppId)
 }
@@ -101,13 +101,14 @@ fun checkDecsyncInfo(
 
 /**
  * Variant of [checkDecsyncInfo] that uses a [Uri] from SAF.
+ *
+ * @throws InsufficientAccessException if there is insufficient access to the [uri].
  */
 @ExperimentalStdlibApi
 fun checkDecsyncInfo(
         context: Context,
         decsyncDir: Uri
 ) {
-    checkUriPermissions(context, decsyncDir)
     val nativeDecsyncDir = nativeFileFromDirUri(context, decsyncDir)
     checkDecsyncInfo(nativeDecsyncDir)
 }
@@ -126,6 +127,8 @@ fun listDecsyncCollections(
 
 /**
  * Variant of [listDecsyncCollections] that uses a [Uri] from SAF.
+ *
+ * @throws InsufficientAccessException if there is insufficient access to the [uri].
  */
 @ExperimentalStdlibApi
 fun listDecsyncCollections(
@@ -152,6 +155,8 @@ fun Decsync.Companion.getStaticInfo(
 
 /**
  * Variant of [getStaticInfo] that uses a [Uri] from SAF.
+ *
+ * @throws InsufficientAccessException if there is insufficient access to the [uri].
  */
 @ExperimentalStdlibApi
 fun Decsync.Companion.getStaticInfo(
@@ -183,13 +188,6 @@ fun Decsync.Companion.getActiveApps(
 ): Pair<DecsyncVersion, List<Decsync.Companion.AppData>> {
     val nativeDecsyncDir = nativeFileFromDirUri(context, decsyncDir)
     return getActiveApps(nativeDecsyncDir, syncType, collection)
-}
-
-fun checkUriPermissions(context: Context, uri: Uri) {
-    if (context.checkCallingOrSelfUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) != PackageManager.PERMISSION_GRANTED ||
-            context.checkCallingOrSelfUriPermission(uri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION) != PackageManager.PERMISSION_GRANTED) {
-        throw InsufficientAccessException()
-    }
 }
 
 object DecsyncPrefUtils {
