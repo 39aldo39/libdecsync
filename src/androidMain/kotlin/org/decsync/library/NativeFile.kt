@@ -187,6 +187,9 @@ class NonExistingFileSaf(
     override fun toString(): String = "$parent/$name"
 }
 
+/**
+ * Returns a [NativeFile] given a document tree [uri] from SAF with a [context].
+ */
 @ExperimentalStdlibApi
 fun nativeFileFromDirUri(context: Context, uri: Uri): NativeFile {
     val name = DecsyncPrefUtils.getNameFromUri(context, uri)
@@ -245,6 +248,9 @@ class NonExistingFileSys(val file: File) : NonExistingFile() {
     }
 }
 
+/**
+ * Returns a [NativeFile] given a [file].
+ */
 fun nativeFileFromFile(file: File): NativeFile =
         when {
             file.isFile -> RealFileSys(file)

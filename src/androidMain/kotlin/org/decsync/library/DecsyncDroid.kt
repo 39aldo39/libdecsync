@@ -30,6 +30,23 @@ class InsufficientAccessException : DecsyncException("Insufficient access to the
 actual fun getInvalidInfoException(e: Exception): DecsyncException = InvalidInfoException(e)
 actual fun getUnsupportedVersionException(requiredVersion: Int, supportedVersion: Int): DecsyncException = UnsupportedVersionException(requiredVersion, supportedVersion)
 
+/**
+ * This file contains some special functions for Android.
+ * The main reason is that Android has two ways of accessing files:
+ * - Using the normal [File] interface.
+ * - Using SAF which uses a [Uri].
+ * This file adds definitions to the normal functions given in [Decsync], but specialized to these
+ * two ways of using the filesystem.
+ * Furthermore, a generalization for accessing the filesystem is introduced in [NativeFile], which
+ * is used in most of [Decsync]. It can be instantiated by using [nativeFileFromFile] (for a [File]
+ * object) and [nativeFileFromDirUri] (for a [Uri] from SAF).
+ * This makes it easier to support both ways of accessing the file system and makes it possible to
+ * use the faster [File] interface when possible, but fallback to SAF using [Uri].
+ */
+
+/**
+ * Instantiates a [Decsync] object using a [NativeFile]. See also [Decsync].
+ */
 @ExperimentalStdlibApi
 fun <T> Decsync(
         decsyncDir: NativeFile,
@@ -41,6 +58,9 @@ fun <T> Decsync(
     return Decsync(decsyncDir, localDir, syncType, collection, ownAppId)
 }
 
+/**
+ * Instantiates a [Decsync] object using a [File]. See also [Decsync].
+ */
 @ExperimentalStdlibApi
 fun <T> Decsync(
         decsyncDir: File,
@@ -52,6 +72,9 @@ fun <T> Decsync(
     return Decsync(nativeDecsyncDir, syncType, collection, ownAppId)
 }
 
+/**
+ * Instantiates a [Decsync] object using a [Uri] from SAF. See also [Decsync].
+ */
 @ExperimentalStdlibApi
 fun <T> Decsync(
         context: Context,
@@ -65,6 +88,9 @@ fun <T> Decsync(
     return Decsync(nativeDecsyncDir, syncType, collection, ownAppId)
 }
 
+/**
+ * Variant of [checkDecsyncInfo] that uses the [File] interface.
+ */
 @ExperimentalStdlibApi
 fun checkDecsyncInfo(
         decsyncDir: File
@@ -73,6 +99,9 @@ fun checkDecsyncInfo(
     checkDecsyncInfo(nativeDecsyncDir)
 }
 
+/**
+ * Variant of [checkDecsyncInfo] that uses a [Uri] from SAF.
+ */
 @ExperimentalStdlibApi
 fun checkDecsyncInfo(
         context: Context,
@@ -83,6 +112,9 @@ fun checkDecsyncInfo(
     checkDecsyncInfo(nativeDecsyncDir)
 }
 
+/**
+ * Variant of [listDecsyncCollections] that uses the [File] interface.
+ */
 @ExperimentalStdlibApi
 fun listDecsyncCollections(
         decsyncDir: File,
@@ -92,6 +124,9 @@ fun listDecsyncCollections(
     return listDecsyncCollections(nativeDecsyncDir, syncType)
 }
 
+/**
+ * Variant of [listDecsyncCollections] that uses a [Uri] from SAF.
+ */
 @ExperimentalStdlibApi
 fun listDecsyncCollections(
         context: Context,
@@ -102,6 +137,9 @@ fun listDecsyncCollections(
     return listDecsyncCollections(nativeDecsyncDir, syncType)
 }
 
+/**
+ * Variant of [getStaticInfo] that uses the [File] interface.
+ */
 @ExperimentalStdlibApi
 fun Decsync.Companion.getStaticInfo(
         decsyncDir: File,
@@ -112,6 +150,9 @@ fun Decsync.Companion.getStaticInfo(
     return getStaticInfo(nativeDecsyncDir, syncType, collection)
 }
 
+/**
+ * Variant of [getStaticInfo] that uses a [Uri] from SAF.
+ */
 @ExperimentalStdlibApi
 fun Decsync.Companion.getStaticInfo(
         context: Context,
