@@ -250,9 +250,9 @@ internal class DecsyncV2<T>(
         }
         private fun stringToHash(string: String): Int {
             var hash = 0
-            for (char in string) {
+            for (byte in string.encodeToByteArray()) {
                 hash *= 19
-                hash += char.toInt()
+                hash += byte
                 hash %= HASH_BINS
             }
             return hash
