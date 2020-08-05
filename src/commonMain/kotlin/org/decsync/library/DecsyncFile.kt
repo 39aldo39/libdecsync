@@ -46,10 +46,17 @@ class DecsyncFile(
 
     fun readLines(readBytes: Int = 0): List<String> {
         return when (val file = file) {
-            is RealFile ->
-                byteArrayToString(file.read(readBytes))
+            is RealFile -> {
+                val bytes = file.read(readBytes)
+                // There should never be an empty file
+                // It probably means that an (uncaught) error occurred
+                if (readBytes == 0 && bytes.isEmpty()) {
+                    throw Exception("Read empty file: $file")
+                }
+                byteArrayToString(bytes)
                         .split('\n')
                         .filter { it.isNotBlank() }
+            }
             is RealDirectory -> throw Exception("readLines called on directory $file")
             is NonExistingFile -> emptyList()
         }
@@ -57,6 +64,7 @@ class DecsyncFile(
 
     fun writeLines(lines: List<String>, append: Boolean = false) {
         val linesNotBlank = lines.filter { it.isNotBlank() }
+        // Make sure we do not create empty files
         if (linesNotBlank.isEmpty()) {
             if (!append) {
                 delete()
