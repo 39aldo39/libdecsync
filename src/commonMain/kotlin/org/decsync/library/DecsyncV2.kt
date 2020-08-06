@@ -81,8 +81,11 @@ internal class DecsyncV2<T>(
         val sequencesFile = ownDir.child("sequences")
         val sequences = getSequences(sequencesFile).toMutableMap()
         entriesWithPath.groupBy { pathToHash(it.path) }.forEach { (hash, entriesWithPath) ->
-            updateEntries(ownDir.child(hash), entriesWithPath.toMutableList())
-            sequences[hash] = (sequences[hash] ?: 0) + 1
+            val entriesWithPath = entriesWithPath.toMutableList()
+            updateEntries(ownDir.child(hash), entriesWithPath, true)
+            if (entriesWithPath.isNotEmpty()) {
+                sequences[hash] = (sequences[hash] ?: 0) + 1
+            }
         }
         setSequences(sequencesFile, sequences)
     }
@@ -141,7 +144,7 @@ internal class DecsyncV2<T>(
         listener.onEntriesUpdate(path, entries, extra)
     }
 
-    private fun updateEntries(file: DecsyncFile, entriesWithPath: MutableList<Decsync.EntryWithPath>) {
+    private fun updateEntries(file: DecsyncFile, entriesWithPath: MutableList<Decsync.EntryWithPath>, requireNewValue: Boolean = false) {
         data class PathAndKey(val path: List<String>, val key: JsonElement) {
             constructor(entryWithPath: Decsync.EntryWithPath) : this(entryWithPath.path, entryWithPath.entry.key)
         }
@@ -158,7 +161,8 @@ internal class DecsyncV2<T>(
             while (iterator.hasNext()) {
                 val entryWithPath = iterator.next()
                 val storedEntryWithPath = storedEntriesWithPath[PathAndKey(entryWithPath)] ?: continue
-                if (entryWithPath.entry.datetime > storedEntryWithPath.entry.datetime) {
+                if (entryWithPath.entry.datetime > storedEntryWithPath.entry.datetime &&
+                        !(requireNewValue && entryWithPath.entry.value == storedEntryWithPath.entry.value)) {
                     storedEntriesWithPath.remove(PathAndKey(entryWithPath))
                     storedEntriesRemoved = true
                 } else {
