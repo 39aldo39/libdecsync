@@ -54,6 +54,11 @@ internal class DecsyncV1<T>(
     override fun setEntriesForPath(path: List<String>, entries: List<Decsync.Entry>) {
         val entriesLocation = getNewEntriesLocation(path, ownAppId)
 
+        // Update stored entries
+        val entries = entries.toMutableList()
+        updateStoredEntries(entriesLocation, entries, true)
+        if (entries.isEmpty()) return
+
         // Write new entries
         val lines = entriesToLines(entries)
         entriesLocation.newEntriesFile.writeLines(lines, true)
@@ -66,9 +71,6 @@ internal class DecsyncV1<T>(
             file.writeText((version + 1).toString())
             sequenceDir = sequenceDir.child(name)
         }
-
-        // Update stored entries
-        updateStoredEntries(entriesLocation, entries.toMutableList())
     }
 
     override fun executeAllNewEntries(optExtra: OptExtra<T>) {
@@ -115,7 +117,7 @@ internal class DecsyncV1<T>(
         }
     }
 
-    private fun updateStoredEntries(entriesLocation: EntriesLocation, entries: MutableList<Decsync.Entry>) {
+    private fun updateStoredEntries(entriesLocation: EntriesLocation, entries: MutableList<Decsync.Entry>, requireNewValue: Boolean = false) {
         if (entriesLocation.storedEntriesFile == null) {
             return
         }
@@ -132,7 +134,7 @@ internal class DecsyncV1<T>(
             while (iterator.hasNext()) {
                 val entry = iterator.next()
                 val storedEntry = storedEntries[entry.key] ?: continue
-                if (entry.datetime > storedEntry.datetime) {
+                if (entry.datetime > storedEntry.datetime && !(requireNewValue && entry.value == storedEntry.value)) {
                     storedEntries.remove(entry.key)
                     storedEntriesRemoved = true
                 } else {
