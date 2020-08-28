@@ -221,17 +221,27 @@ object DecsyncPrefUtils {
     }
 
     fun chooseDecsyncDir(fragment: Fragment) {
+        val intent = getIntent(fragment.requireActivity())
+        fragment.startActivityForResult(intent, CHOOSE_DECSYNC_DIRECTORY)
+    }
+
+    fun chooseDecsyncDir(activity: Activity) {
+        val intent = getIntent(activity)
+        activity.startActivityForResult(intent, CHOOSE_DECSYNC_DIRECTORY)
+    }
+
+    private fun getIntent(activity: Activity): Intent {
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
         intent.addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
         if (Build.VERSION.SDK_INT >= 26) {
             val volumeId = "primary"
-            val initialUri = getDecsyncDir(fragment.requireActivity())
+            val initialUri = getDecsyncDir(activity)
                     ?: Uri.parse("content://com.android.externalstorage.documents/document/$volumeId%3ADecSync")
             intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, initialUri)
         }
-        fragment.startActivityForResult(intent, CHOOSE_DECSYNC_DIRECTORY)
+        return intent
     }
 
     @ExperimentalStdlibApi
