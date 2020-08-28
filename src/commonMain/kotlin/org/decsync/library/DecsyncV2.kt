@@ -30,6 +30,11 @@ internal class DecsyncV2<T>(
 ) : DecsyncInst<T>() {
     private val dir = getDecsyncSubdir(decsyncDir, syncType, collection).child("v2")
 
+    init {
+        // Create shared directories
+        dir.mkdir()
+    }
+
     private fun entriesWithPathToLines(entriesWithPath: Collection<Decsync.EntryWithPath>): List<String> =
             entriesWithPath.map { it.toJson().toString() }
 
