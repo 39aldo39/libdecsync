@@ -30,17 +30,15 @@ import java.io.FileOutputStream
 
 @ExperimentalStdlibApi
 class RealFileSaf(
-        val parent: DecsyncFile,
         val context: Context,
         val uri: Uri,
-        override val name: String,
+        name: String,
         var length: Int
-) : RealFile() {
-    override fun delete(): NonExistingFile {
+) : RealFile(name) {
+
+    override fun delete() {
         val cr = context.contentResolver
         DocumentsContract.deleteDocument(cr, uri)
-        (parent.file as? RealDirectorySaf)?.removeChild(this)
-        return NonExistingFileSaf(parent, name)
     }
 
     override fun length(): Int = length
@@ -73,26 +71,15 @@ class RealFileSaf(
 
 @ExperimentalStdlibApi
 class RealDirectorySaf(
-        val parent: DecsyncFile?,
         val context: Context,
         val uri: Uri,
-        override val name: String
-) : RealDirectory() {
-    val asDecsyncFile = DecsyncFile(this)
-    private var _children: MutableList<NativeFile>? = null
+        name: String
+) : RealDirectory(name) {
 
-    override fun resetCache() {
-        _children = null
-    }
-
-    override fun child(name: String): NativeFile =
-            children().firstOrNull { it.name == name }
-                    ?: NonExistingFileSaf(asDecsyncFile, name)
-
-    override fun children(): List<NativeFile> = _children ?: {
+    override fun listChildren(): List<RealNode> {
         val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(uri, DocumentsContract.getDocumentId(uri))
         val cr = context.contentResolver
-        val result = mutableListOf<NativeFile>()
+        val result = mutableListOf<RealNode>()
         cr.query(childrenUri, arrayOf(
                 DocumentsContract.Document.COLUMN_DOCUMENT_ID,
                 DocumentsContract.Document.COLUMN_MIME_TYPE,
@@ -105,88 +92,36 @@ class RealDirectorySaf(
                 val displayName = cursor.getString(2)
                 val childUri = DocumentsContract.buildDocumentUriUsingTree(uri, documentId)
                 result += if (mimeType == DocumentsContract.Document.MIME_TYPE_DIR) {
-                    RealDirectorySaf(asDecsyncFile, context, childUri, displayName)
+                    RealDirectorySaf(context, childUri, displayName)
                 } else {
                     val length = cursor.getLong(3).toInt()
-                    RealFileSaf(asDecsyncFile, context, childUri, displayName, length)
+                    RealFileSaf(context, childUri, displayName, length)
                 }
             }
         } ?: throw Exception("Could not get children for directory $this")
-        result
-    }().also { _children = it }
-
-    fun addChild(file: NativeFile) {
-        _children?.add(file)
+        return result
     }
 
-    fun removeChild(file: NativeFile) {
-        _children?.remove(file)
-    }
-
-    override fun delete(): NonExistingFile {
-        if (parent == null) {
-            throw Exception("Cannot delete root directory")
-        }
-
+    override fun delete() {
         val cr = context.contentResolver
         DocumentsContract.deleteDocument(cr, uri)
-        (parent.file as? RealDirectorySaf)?.removeChild(this)
-        return NonExistingFileSaf(parent, name)
+    }
+
+    override fun mkfile(name: String, text: ByteArray): RealFile {
+        val cr = context.contentResolver
+        val uri = DocumentsContract.createDocument(cr, uri, "", name)
+                ?: throw Exception("Could not create file $name of parent $this")
+        return RealFileSaf(context, uri, name, 0).apply { write(text) }
+    }
+
+    override fun mkdir(name: String): RealDirectory {
+        val cr = context.contentResolver
+        val uri = DocumentsContract.createDocument(cr, uri, DocumentsContract.Document.MIME_TYPE_DIR, name)
+                ?: throw Exception("Could not create directory $name of parent $this")
+        return RealDirectorySaf(context, uri, name)
     }
 
     override fun toString(): String = uri.toString()
-}
-
-@ExperimentalStdlibApi
-class NonExistingFileSaf(
-        val parent: DecsyncFile,
-        override val name: String
-) : NonExistingFile() {
-    private val asDecsyncFile = DecsyncFile(this)
-
-    override fun child(name: String): NativeFile = NonExistingFileSaf(asDecsyncFile, name)
-
-    override fun mkfile(): RealFile {
-        val parentDir = createParentDir()
-        return when (val result = parentDir.child(name)) {
-            is RealFile -> result
-            is RealDirectory -> throw Exception("Directory $result used as file")
-            is NonExistingFile -> {
-                val cr = parentDir.context.contentResolver
-                val uri = DocumentsContract.createDocument(cr, parentDir.uri, "", name)
-                        ?: throw Exception("Could not create file $name of parent $parentDir")
-                RealFileSaf(parentDir.asDecsyncFile, parentDir.context, uri, name, 0)
-                        .also { parentDir.addChild(it) }
-            }
-        }
-    }
-
-    private fun mkdir(): RealDirectorySaf {
-        val parentDir = createParentDir()
-        return when (val result = parentDir.child(name)) {
-            is RealFile -> throw Exception("File $result used as directory")
-            is RealDirectorySaf -> result
-            is NonExistingFile -> {
-                val cr = parentDir.context.contentResolver
-                val uri = DocumentsContract.createDocument(cr, parentDir.uri, DocumentsContract.Document.MIME_TYPE_DIR, name)
-                        ?: throw Exception("Could not create file $name of parent $parentDir")
-                RealDirectorySaf(parentDir.asDecsyncFile, parentDir.context, uri, name)
-                        .also { parentDir.addChild(it) }
-            }
-            else -> throw Exception("Non-standard file type found. This should never happen.")
-        }
-    }
-
-    private fun createParentDir(): RealDirectorySaf {
-        return when (val parentNativeFile = parent.file) {
-            is RealFileSaf -> throw Exception("File $parent used as directory")
-            is RealDirectorySaf -> parentNativeFile
-            is NonExistingFileSaf -> parentNativeFile.mkdir().also { parent.file = it }
-            else -> throw Exception("Non-standard file type found. This should never happen.")
-        }
-    }
-
-    override fun toString(): String = "$parent/$name"
 }
 
 /**
@@ -198,7 +133,7 @@ class NonExistingFileSaf(
 fun nativeFileFromDirUri(context: Context, uri: Uri): NativeFile {
     checkUriPermissions(context, uri)
     val name = DecsyncPrefUtils.getNameFromUri(context, uri)
-    return RealDirectorySaf(null, context, uri, name)
+    return NativeFile(RealDirectorySaf(context, uri, name), null)
 }
 
 fun checkUriPermissions(context: Context, uri: Uri) {
@@ -210,12 +145,13 @@ fun checkUriPermissions(context: Context, uri: Uri) {
 
 // Implementations using a traditional file
 
-class RealFileSys(val file: File) : RealFile() {
-    override val name = file.name
+class RealFileSys(
+        val file: File,
+        name: String = file.name
+) : RealFile(name) {
 
-    override fun delete(): NonExistingFile {
+    override fun delete() {
         file.delete()
-        return NonExistingFileSys(file)
     }
 
     override fun length(): Int = file.length().toInt()
@@ -234,38 +170,44 @@ class RealFileSys(val file: File) : RealFile() {
             }
 }
 
-class RealDirectorySys(val file: File) : RealDirectory() {
-    override val name = file.name
+class RealDirectorySys(
+        val file: File,
+        name: String = file.name
+) : RealDirectory(name) {
 
-    override fun child(name: String): NativeFile = nativeFileFromFile(File(file, name))
-
-    override fun children(): List<NativeFile> =
-            (file.listFiles() ?: emptyArray()).asList().map { nativeFileFromFile(it) }
-
-    override fun delete(): NonExistingFile {
-        file.delete()
-        return NonExistingFileSys(file)
+    override fun listChildren(): List<RealNode> {
+        return (file.listFiles() ?: emptyArray()).asList().mapNotNull { realNodeFromFile(it) }
     }
-}
 
-class NonExistingFileSys(val file: File) : NonExistingFile() {
-    override val name = file.name
+    override fun delete() {
+        file.delete()
+    }
 
-    override fun child(name: String): NativeFile = NonExistingFileSys(File(file, name))
+    override fun mkfile(name: String, text: ByteArray): RealFile {
+        return RealFileSys(File(file, name), name).apply { write(text) }
+    }
 
-    // We only create the parent directory, the file is created automatically
-    override fun mkfile(): RealFile {
-        file.parentFile?.mkdirs()
-        return RealFileSys(file)
+    override fun mkdir(name: String): RealDirectory {
+        val dir = File(file, name)
+        dir.mkdir()
+        return RealDirectorySys(dir, name)
     }
 }
 
 /**
  * Returns a [NativeFile] given a [file].
  */
-fun nativeFileFromFile(file: File): NativeFile =
+fun nativeFileFromFile(file: File): NativeFile {
+    val node = realNodeFromFile(file) ?: run {
+        file.mkdirs()
+        RealDirectorySys(file)
+    }
+    return NativeFile(node, null)
+}
+
+private fun realNodeFromFile(file: File, name: String = file.name): RealNode? =
         when {
-            file.isFile -> RealFileSys(file)
-            file.isDirectory -> RealDirectorySys(file)
-            else -> NonExistingFileSys(file)
+            file.isFile -> RealFileSys(file, name)
+            file.isDirectory -> RealDirectorySys(file, name)
+            else -> null
         }

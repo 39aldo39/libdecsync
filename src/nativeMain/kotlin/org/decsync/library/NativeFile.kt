@@ -28,10 +28,9 @@ expect fun mkdirCustom(path: String, mode: Int)
 expect fun readCustom(fd: Int, buf: CValuesRef<*>?, len: Int)
 expect fun writeCustom(fd: Int, buf: CValuesRef<*>?, size: Int)
 
-class RealFileImpl(private val path: String, override val name: String) : RealFile() {
-    override fun delete(): NonExistingFile {
+class RealFileImpl(private val path: String, name: String) : RealFile(name) {
+    override fun delete() {
         unlink(path)
-        return NonExistingFileImpl(path, name)
     }
     override fun length(): Int {
         val fd = open(path, openFlagsBinary or O_RDONLY)
@@ -48,10 +47,10 @@ class RealFileImpl(private val path: String, override val name: String) : RealFi
         val fd = open(path, openFlagsBinary or O_RDONLY)
         if (fd < 0) throw Exception("Failed to open $path")
         val len = length(fd)
-        val buf = ByteArray(len - readBytes + 1)
+        val buf = ByteArray(len - readBytes)
         lseek(fd, readBytes.off_t(), SEEK_SET)
         buf.usePinned { bufPin ->
-            readCustom(fd, bufPin.addressOf(0), len)
+            readCustom(fd, bufPin.addressOf(0), len - readBytes)
         }
         close(fd)
         return buf
@@ -69,51 +68,54 @@ class RealFileImpl(private val path: String, override val name: String) : RealFi
     override fun toString(): String = path
 }
 
-class RealDirectoryImpl(private val path: String, override val name: String) : RealDirectory() {
-    override fun child(name: String): NativeFile = getNativeFileFromPath("$path/$name", name)
-
-    override fun children(): List<NativeFile> {
-        val result = mutableListOf<NativeFile>()
+class RealDirectoryImpl(private val path: String, name: String) : RealDirectory(name) {
+    override fun listChildren(): List<RealNode> {
+        val result = mutableListOf<RealNode>()
         val d = opendir(path) ?: return emptyList()
         while (true) {
             val dir = readdir(d)?.pointed ?: break
             val name = dir.d_name.toKString()
             if (name == "." || name == "..") continue
-            result += getNativeFileFromPath("$path/$name", name)
+            result += realNodeFromPath("$path/$name", name) ?: continue
         }
         closedir(d)
         return result
     }
-    override fun delete(): NonExistingFile {
+    override fun delete() {
         rmdir(path)
-        return NonExistingFileImpl(path, name)
+    }
+    override fun mkfile(name: String, text: ByteArray): RealFile {
+        val file = RealFileImpl("$path/$name", name)
+        file.write(text)
+        return file
+    }
+    override fun mkdir(name: String): RealDirectory {
+        mkdirCustom("$path/$name", createModeDir)
+        return RealDirectoryImpl("$path/$name", name)
     }
 
     override fun toString(): String = path
 }
 
-class NonExistingFileImpl(private val path: String, override val name: String) : NonExistingFile() {
-    override fun child(name: String): NativeFile = NonExistingFileImpl("$path/$name", name)
-
-    // We only create the parent directory, the file is created automatically
-    override fun mkfile(): RealFile {
-        val result = RealFileImpl(path, name)
-        val parentPath = path.dropLastWhile { it != '/' }.dropLast(1)
-        if (parentPath.isEmpty()) return result
-        val parentFile = getNativeFileFromPath(parentPath)
-        if (parentFile !is NonExistingFile) return result
-        parentFile.mkfile()
-        mkdirCustom(parentPath, createModeDir)
-        return result
+fun nativeFileFromPath(path: String, name: String = path.takeLastWhile { it != '/' }): NativeFile {
+    val node = realNodeFromPath(path, name) ?: run {
+        mkdirs(path)
+        RealDirectoryImpl(path, name)
     }
-
-    override fun toString(): String = path
+    return NativeFile(node, null)
 }
 
-fun getNativeFileFromPath(path: String, name: String = path.takeLastWhile { it != '/' }): NativeFile = memScoped {
+private fun mkdirs(path: String) {
+    if (path.isEmpty() || realNodeFromPath(path) != null) return
+    val parentPath = path.dropLastWhile { it != '/' }.dropLast(1)
+    mkdirs(parentPath)
+    mkdirCustom(path, createModeDir)
+}
+
+private fun realNodeFromPath(path: String, name: String = path.takeLastWhile { it != '/' }): RealNode? = memScoped {
     val fileStat = alloc<stat>()
     if (stat(path, fileStat.ptr) != 0) {
-        return NonExistingFileImpl(path, name)
+        null
     } else {
         when (fileStat.st_mode.toInt() and S_IFMT) {
             S_IFREG -> RealFileImpl(path, name)
