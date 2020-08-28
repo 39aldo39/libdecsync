@@ -12,6 +12,8 @@ import kotlin.test.assertEquals
 class DecsyncMockTest : DecsyncTest(getMockDir().let { { it } }, null)
 @ExperimentalStdlibApi
 class DecsyncMockTestV1 : DecsyncTest(getMockDir().let { { it } }, DecsyncVersion.V1)
+@ExperimentalStdlibApi
+class DecsyncMockTestV2 : DecsyncTest(getMockDir().let { { it } }, DecsyncVersion.V2)
 
 typealias Extra = MutableMap<List<String>, MutableMap<JsonElement, JsonElement>>
 

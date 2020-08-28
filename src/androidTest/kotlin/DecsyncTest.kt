@@ -16,3 +16,9 @@ class DecsyncSysTestV1 : DecsyncTest(
         { getTestDirSys(InstrumentationRegistry.getInstrumentation().context) },
         DecsyncVersion.V1
 )
+@RunWith(AndroidJUnit4::class)
+@ExperimentalStdlibApi
+class DecsyncSysTestV2 : DecsyncTest(
+        { getTestDirSys(InstrumentationRegistry.getInstrumentation().context) },
+        DecsyncVersion.V2
+)
