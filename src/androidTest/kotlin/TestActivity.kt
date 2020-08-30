@@ -61,6 +61,12 @@ class TestActivity : AppCompatActivity() {
             runTests(DecsyncSafTestV1::class.java, DecsyncSafTestV1())
             class DecsyncSafTestV2 : DecsyncTest({ nativeFileFromDirUri(mContext, decsyncDir) }, DecsyncVersion.V2)
             runTests(DecsyncSafTestV2::class.java, DecsyncSafTestV2())
+
+            class DecsyncUpgradeSafTestV1V2 : DecsyncUpgradeTest(
+                    { nativeFileFromDirUri(mContext, decsyncDir) },
+                    DecsyncVersion.V1, DecsyncVersion.V2
+            )
+            runTests(DecsyncUpgradeSafTestV1V2::class.java, DecsyncUpgradeSafTestV1V2())
         }
 
         override fun onPostExecute(result: Unit) {
