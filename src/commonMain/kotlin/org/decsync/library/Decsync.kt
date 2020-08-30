@@ -126,7 +126,7 @@ class Decsync<T> internal constructor(
         if (localVersion != null) {
             version = localVersion
         } else {
-            version = getLatestOwnDecsyncVersion() ?: decsyncVersion
+            version = getLatestOwnDecsyncVersion() ?: getLatestDecsyncVersion() ?: decsyncVersion
             localInfo["version"] = JsonLiteral(version.toInt())
             writeLocalInfo()
         }
@@ -396,6 +396,13 @@ class Decsync<T> internal constructor(
     private fun getLatestOwnDecsyncVersion(): DecsyncVersion? {
         val subdir = getDecsyncSubdir(decsyncDir, syncType, collection)
         if (subdir.child("stored-entries", ownAppId).file.fileSystemNode is RealDirectory) return DecsyncVersion.V1
+        return null
+    }
+
+    private fun getLatestDecsyncVersion(): DecsyncVersion? {
+        val subdir = getDecsyncSubdir(decsyncDir, syncType, collection)
+        if (subdir.child("v2").file.fileSystemNode is RealDirectory) return DecsyncVersion.V2
+        if (subdir.child("stored-entries").file.fileSystemNode is RealDirectory) return DecsyncVersion.V1
         return null
     }
 
