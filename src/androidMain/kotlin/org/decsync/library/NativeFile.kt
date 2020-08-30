@@ -38,7 +38,12 @@ class RealFileSaf(
 
     override fun delete() {
         val cr = context.contentResolver
-        DocumentsContract.deleteDocument(cr, uri)
+        try {
+            DocumentsContract.deleteDocument(cr, uri)
+        } catch (e: IllegalArgumentException) {
+            // This exception probably means the file was already deleted
+            // DocumentsContract.deleteDocument already logs the exception
+        }
     }
 
     override fun length(): Int = length
@@ -80,12 +85,18 @@ class RealDirectorySaf(
         val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(uri, DocumentsContract.getDocumentId(uri))
         val cr = context.contentResolver
         val result = mutableListOf<RealNode>()
-        cr.query(childrenUri, arrayOf(
-                DocumentsContract.Document.COLUMN_DOCUMENT_ID,
-                DocumentsContract.Document.COLUMN_MIME_TYPE,
-                DocumentsContract.Document.COLUMN_DISPLAY_NAME,
-                DocumentsContract.Document.COLUMN_SIZE
-        ), null, null, null)?.use { cursor ->
+        try {
+            cr.query(childrenUri, arrayOf(
+                    DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                    DocumentsContract.Document.COLUMN_MIME_TYPE,
+                    DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+                    DocumentsContract.Document.COLUMN_SIZE
+            ), null, null, null)
+        } catch (e: IllegalArgumentException) {
+            // This exception probably means the file was deleted
+            Log.w("Failed to list children of (deleted?) $this.\n$e")
+            return emptyList()
+        }?.use { cursor ->
             while (cursor.moveToNext()) {
                 val documentId = cursor.getString(0)
                 val mimeType = cursor.getString(1)
@@ -104,7 +115,12 @@ class RealDirectorySaf(
 
     override fun delete() {
         val cr = context.contentResolver
-        DocumentsContract.deleteDocument(cr, uri)
+        try {
+            DocumentsContract.deleteDocument(cr, uri)
+        } catch (e: IllegalArgumentException) {
+            // This exception probably means the directory was already deleted
+            // DocumentsContract.deleteDocument already logs the exception
+        }
     }
 
     override fun mkfile(name: String, text: ByteArray): RealFile {
