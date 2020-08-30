@@ -30,10 +30,10 @@ import java.io.FileOutputStream
 
 @ExperimentalStdlibApi
 class RealFileSaf(
-        val context: Context,
-        val uri: Uri,
+        private val context: Context,
+        private val uri: Uri,
         name: String,
-        var length: Int
+        private var length: Int
 ) : RealFile(name) {
 
     override fun delete() {
@@ -76,8 +76,8 @@ class RealFileSaf(
 
 @ExperimentalStdlibApi
 class RealDirectorySaf(
-        val context: Context,
-        val uri: Uri,
+        private val context: Context,
+        private val uri: Uri,
         name: String
 ) : RealDirectory(name) {
 
@@ -162,7 +162,7 @@ fun checkUriPermissions(context: Context, uri: Uri) {
 // Implementations using a traditional file
 
 class RealFileSys(
-        val file: File,
+        private val file: File,
         name: String = file.name
 ) : RealFile(name) {
 
@@ -187,7 +187,7 @@ class RealFileSys(
 }
 
 class RealDirectorySys(
-        val file: File,
+        private val file: File,
         name: String = file.name
 ) : RealDirectory(name) {
 
