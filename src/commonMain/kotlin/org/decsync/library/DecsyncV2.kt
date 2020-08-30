@@ -85,7 +85,7 @@ internal class DecsyncV2<T>(
         val ownDir = dir.child(ownAppId)
         val sequencesFile = ownDir.child("sequences")
         val sequences = getSequences(sequencesFile).toMutableMap()
-        entriesWithPath.groupBy { pathToHash(it.path) }.forEach { (hash, entriesWithPath) ->
+        entriesWithPath.groupBy { Hash.pathToHash(it.path) }.forEach { (hash, entriesWithPath) ->
             val entriesWithPath = entriesWithPath.toMutableList()
             updateEntries(ownDir.child(hash), entriesWithPath, true)
             if (entriesWithPath.isNotEmpty()) {
@@ -189,7 +189,7 @@ internal class DecsyncV2<T>(
             path: List<String>,
             extra: T,
             keys: List<JsonElement>?) {
-        val hash = pathToHash(path)
+        val hash = Hash.pathToHash(path)
         executeStoredEntriesForHash(hash, { it == path }, extra, keys)
     }
 
@@ -200,7 +200,7 @@ internal class DecsyncV2<T>(
         val pathPred = { path: List<String> ->
             path.take(prefix.size) == prefix
         }
-        for (hash in allHashes) {
+        for (hash in Hash.allHashes) {
             executeStoredEntriesForHash(hash, pathPred, extra, keys)
         }
     }
@@ -224,7 +224,7 @@ internal class DecsyncV2<T>(
         val appIds = dir.listDirectories()
         for (appId in appIds) {
             val appDir = dir.child(appId)
-            for (hash in allHashes) {
+            for (hash in Hash.allHashes) {
                 val file = appDir.child(hash)
                 val datetime = file.readLines()
                         .mapNotNull { Decsync.EntryWithPath.fromLine(it) }
@@ -245,29 +245,6 @@ internal class DecsyncV2<T>(
     }
 
     companion object {
-        private const val HASH_BINS = 256
-        private fun pathToHash(path: List<String>): String {
-            if (path == listOf("info")) return "info"
-
-            var hash = 0
-            for (string in path) {
-                hash *= 119
-                hash += stringToHash(string)
-                hash %= HASH_BINS
-            }
-            return hash.toString(16).padStart(2, '0')
-        }
-        private fun stringToHash(string: String): Int {
-            var hash = 0
-            for (byte in string.encodeToByteArray()) {
-                hash *= 19
-                hash += byte
-                hash %= HASH_BINS
-            }
-            return hash
-        }
-        private val allHashes = (0 until HASH_BINS).map { it.toString(16) } + "info"
-
         fun getStaticInfo(
                 decsyncDir: NativeFile,
                 syncType: String,
@@ -275,7 +252,7 @@ internal class DecsyncV2<T>(
                 info: MutableMap<JsonElement, JsonElement>,
                 datetimes: MutableMap<JsonElement, String>
         ) {
-            val hash = pathToHash(listOf("info"))
+            val hash = Hash.pathToHash(listOf("info"))
             val dir = getDecsyncSubdir(decsyncDir, syncType, collection).child("v2")
             val appIds = dir.listDirectories()
             for (appId in appIds) {
