@@ -9,7 +9,7 @@ object Hash {
         if (path == listOf("info")) return "info"
 
         val stringHashes = path.map { stringToHash(it) }
-        val hash = polyHash(119, stringHashes)
+        val hash = polyHash(199, stringHashes)
         return hash.toString(16).padStart(2, '0')
     }
 
