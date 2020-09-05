@@ -401,7 +401,6 @@ class Decsync<T> internal constructor(
 
     private fun getLatestDecsyncVersion(): DecsyncVersion? {
         val subdir = getDecsyncSubdir(decsyncDir, syncType, collection)
-        if (subdir.child("v2").file.fileSystemNode is RealDirectory) return DecsyncVersion.V2
         if (subdir.child("stored-entries").file.fileSystemNode is RealDirectory) return DecsyncVersion.V1
         return null
     }
