@@ -129,7 +129,7 @@ class Decsync<T> internal constructor(
         if (localVersion != null) {
             version = localVersion
         } else {
-            version = getLatestOwnDecsyncVersion() ?: decsyncVersion
+            version = getLatestOwnDecsyncVersion() ?: getLatestDecsyncVersion() ?: decsyncVersion
             localInfo["version"] = JsonLiteral(version.toInt())
             writeLocalInfo()
         }
@@ -399,8 +399,15 @@ class Decsync<T> internal constructor(
 
     private fun getLatestOwnDecsyncVersion(): DecsyncVersion? {
         val subdir = getDecsyncSubdir(decsyncDir, syncType, collection)
-        if (subdir.child("v2", ownAppId).file is RealDirectory) return DecsyncVersion.V2
-        if (subdir.child("stored-entries", ownAppId).file is RealDirectory) return DecsyncVersion.V1
+        if (subdir.child("v2", ownAppId).file.fileSystemNode is RealDirectory) return DecsyncVersion.V2
+        if (subdir.child("stored-entries", ownAppId).file.fileSystemNode is RealDirectory) return DecsyncVersion.V1
+        return null
+    }
+
+    private fun getLatestDecsyncVersion(): DecsyncVersion? {
+        val subdir = getDecsyncSubdir(decsyncDir, syncType, collection)
+        if (subdir.child("v2").file.fileSystemNode is RealDirectory) return DecsyncVersion.V2
+        if (subdir.child("stored-entries").file.fileSystemNode is RealDirectory) return DecsyncVersion.V1
         return null
     }
 
@@ -606,14 +613,9 @@ internal fun getDecsyncSubdir(decsyncDir: NativeFile, syncType: String, collecti
 @ExperimentalStdlibApi
 private fun getDecsyncInfo(decsyncDir: NativeFile): JsonObject? {
     val file = decsyncDir.child(".decsync-info")
-    return when (file) {
-        is RealFile -> {
-            val text = byteArrayToString(file.read())
-            json.parseJson(text).jsonObject
-        }
-        is RealDirectory -> throw Exception("getDecsyncInfo called on directory $file")
-        is NonExistingFile -> null
-    }
+    val bytes = file.read() ?: return null
+    val text = byteArrayToString(bytes)
+    return json.parseJson(text).jsonObject
 }
 
 private val defaultDecsyncInfo: JsonObject =
@@ -640,10 +642,5 @@ private fun getDecsyncVersion(info: Map<String, JsonElement>): DecsyncVersion? {
 @ExperimentalStdlibApi
 private fun setDecsyncInfo(decsyncDir: NativeFile, obj: JsonObject) {
     val file = decsyncDir.child(".decsync-info")
-    val fileReal = when (file) {
-        is RealFile -> file
-        is RealDirectory -> throw Exception(".decsync-info is a directory")
-        is NonExistingFile -> file.mkfile()
-    }
-    fileReal.write(obj.toString().encodeToByteArray())
+    file.write(obj.toString().encodeToByteArray())
 }

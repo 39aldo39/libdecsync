@@ -5,7 +5,6 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.AsyncTask
 import android.os.Build
@@ -30,6 +29,23 @@ class InsufficientAccessException : DecsyncException("Insufficient access to the
 actual fun getInvalidInfoException(e: Exception): DecsyncException = InvalidInfoException(e)
 actual fun getUnsupportedVersionException(requiredVersion: Int, supportedVersion: Int): DecsyncException = UnsupportedVersionException(requiredVersion, supportedVersion)
 
+/**
+ * This file contains some special functions for Android.
+ * The main reason is that Android has two ways of accessing files:
+ * - Using the normal [File] interface.
+ * - Using SAF which uses a [Uri].
+ * This file adds definitions to the normal functions given in [Decsync], but specialized to these
+ * two ways of using the filesystem.
+ * Furthermore, a generalization for accessing the filesystem is introduced in [NativeFile], which
+ * is used in most of [Decsync]. It can be instantiated by using [nativeFileFromFile] (for a [File]
+ * object) and [nativeFileFromDirUri] (for a [Uri] from SAF).
+ * This makes it easier to support both ways of accessing the file system and makes it possible to
+ * use the faster [File] interface when possible, but fallback to SAF using [Uri].
+ */
+
+/**
+ * Instantiates a [Decsync] object using a [NativeFile]. See also [Decsync].
+ */
 @ExperimentalStdlibApi
 fun <T> Decsync(
         decsyncDir: NativeFile,
@@ -41,6 +57,9 @@ fun <T> Decsync(
     return Decsync(decsyncDir, localDir, syncType, collection, ownAppId)
 }
 
+/**
+ * Instantiates a [Decsync] object using a [File]. See also [Decsync].
+ */
 @ExperimentalStdlibApi
 fun <T> Decsync(
         decsyncDir: File,
@@ -52,6 +71,11 @@ fun <T> Decsync(
     return Decsync(nativeDecsyncDir, syncType, collection, ownAppId)
 }
 
+/**
+ * Instantiates a [Decsync] object using a [Uri] from SAF. See also [Decsync].
+ *
+ * @throws InsufficientAccessException if there is insufficient access to the [uri].
+ */
 @ExperimentalStdlibApi
 fun <T> Decsync(
         context: Context,
@@ -60,11 +84,13 @@ fun <T> Decsync(
         collection: String?,
         ownAppId: String
 ): Decsync<T> {
-    checkUriPermissions(context, decsyncDir)
     val nativeDecsyncDir = nativeFileFromDirUri(context, decsyncDir)
     return Decsync(nativeDecsyncDir, syncType, collection, ownAppId)
 }
 
+/**
+ * Variant of [checkDecsyncInfo] that uses the [File] interface.
+ */
 @ExperimentalStdlibApi
 fun checkDecsyncInfo(
         decsyncDir: File
@@ -73,16 +99,23 @@ fun checkDecsyncInfo(
     checkDecsyncInfo(nativeDecsyncDir)
 }
 
+/**
+ * Variant of [checkDecsyncInfo] that uses a [Uri] from SAF.
+ *
+ * @throws InsufficientAccessException if there is insufficient access to the [uri].
+ */
 @ExperimentalStdlibApi
 fun checkDecsyncInfo(
         context: Context,
         decsyncDir: Uri
 ) {
-    checkUriPermissions(context, decsyncDir)
     val nativeDecsyncDir = nativeFileFromDirUri(context, decsyncDir)
     checkDecsyncInfo(nativeDecsyncDir)
 }
 
+/**
+ * Variant of [listDecsyncCollections] that uses the [File] interface.
+ */
 @ExperimentalStdlibApi
 fun listDecsyncCollections(
         decsyncDir: File,
@@ -92,6 +125,11 @@ fun listDecsyncCollections(
     return listDecsyncCollections(nativeDecsyncDir, syncType)
 }
 
+/**
+ * Variant of [listDecsyncCollections] that uses a [Uri] from SAF.
+ *
+ * @throws InsufficientAccessException if there is insufficient access to the [uri].
+ */
 @ExperimentalStdlibApi
 fun listDecsyncCollections(
         context: Context,
@@ -102,6 +140,9 @@ fun listDecsyncCollections(
     return listDecsyncCollections(nativeDecsyncDir, syncType)
 }
 
+/**
+ * Variant of [getStaticInfo] that uses the [File] interface.
+ */
 @ExperimentalStdlibApi
 fun Decsync.Companion.getStaticInfo(
         decsyncDir: File,
@@ -112,6 +153,11 @@ fun Decsync.Companion.getStaticInfo(
     return getStaticInfo(nativeDecsyncDir, syncType, collection)
 }
 
+/**
+ * Variant of [getStaticInfo] that uses a [Uri] from SAF.
+ *
+ * @throws InsufficientAccessException if there is insufficient access to the [uri].
+ */
 @ExperimentalStdlibApi
 fun Decsync.Companion.getStaticInfo(
         context: Context,
@@ -142,13 +188,6 @@ fun Decsync.Companion.getActiveApps(
 ): Pair<DecsyncVersion, List<Decsync.Companion.AppData>> {
     val nativeDecsyncDir = nativeFileFromDirUri(context, decsyncDir)
     return getActiveApps(nativeDecsyncDir, syncType, collection)
-}
-
-fun checkUriPermissions(context: Context, uri: Uri) {
-    if (context.checkCallingOrSelfUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) != PackageManager.PERMISSION_GRANTED ||
-            context.checkCallingOrSelfUriPermission(uri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION) != PackageManager.PERMISSION_GRANTED) {
-        throw InsufficientAccessException()
-    }
 }
 
 object DecsyncPrefUtils {
@@ -182,17 +221,27 @@ object DecsyncPrefUtils {
     }
 
     fun chooseDecsyncDir(fragment: Fragment) {
+        val intent = getIntent(fragment.requireActivity())
+        fragment.startActivityForResult(intent, CHOOSE_DECSYNC_DIRECTORY)
+    }
+
+    fun chooseDecsyncDir(activity: Activity) {
+        val intent = getIntent(activity)
+        activity.startActivityForResult(intent, CHOOSE_DECSYNC_DIRECTORY)
+    }
+
+    private fun getIntent(activity: Activity): Intent {
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
         intent.addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
         if (Build.VERSION.SDK_INT >= 26) {
             val volumeId = "primary"
-            val initialUri = getDecsyncDir(fragment.requireActivity())
+            val initialUri = getDecsyncDir(activity)
                     ?: Uri.parse("content://com.android.externalstorage.documents/document/$volumeId%3ADecSync")
             intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, initialUri)
         }
-        fragment.startActivityForResult(intent, CHOOSE_DECSYNC_DIRECTORY)
+        return intent
     }
 
     @ExperimentalStdlibApi

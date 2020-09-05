@@ -18,11 +18,11 @@
 
 package org.decsync.library
 
+@ExperimentalStdlibApi
 object Url {
     private val safeChars: List<Char> = ('a'..'z') + ('A'..'Z') + ('0'..'9') + "-_.~".toList()
     private val hexArray: List<Char> = ('0'..'9') + ('A'..'F')
 
-    @ExperimentalStdlibApi
     fun encode(input: String): String {
         val output = input.encodeToByteArray().joinToString("") { byte ->
             val char = byte.toChar()
@@ -40,32 +40,46 @@ object Url {
             }
         }
 
-        return if (output.isNotEmpty() && output[0] == '.') {
-            "%2E" + output.substring(1)
-        } else {
-            output
-        }
+        return removeDot(output)
     }
 
-    fun decode(input: String): String? {
-        val builder = StringBuilder()
+    fun decode(inputWithoutDot: String): String? {
+        if (inputWithoutDot.startsWith(".")) return null
+        val input = addDot(inputWithoutDot)
+        val bytes = ByteArray(input.length)
         var i = 0
+        var j = 0
         while (i < input.length) {
-            val c = input[i]
-            if (c != '%') {
-                builder.append(c)
-            } else {
-                if (i + 2 >= input.length) return null
-                val value = try {
-                    (input[i + 1].toString() + input[i + 2].toString()).toInt(16)
-                } catch (e: NumberFormatException) {
-                    return null
+            when (val c = input[i]) {
+                '%' -> {
+                    if (i + 2 >= input.length) return null
+                    val index1 = hexArray.indexOf(input[i + 1]).takeIf { it >= 0 } ?: return null
+                    val index2 = hexArray.indexOf(input[i + 2]).takeIf { it >= 0 } ?: return null
+                    val value = 16 * index1 + index2
+                    bytes[j++] = value.toByte()
+                    i += 2
                 }
-                builder.append(value.toChar())
-                i += 2
+                in safeChars -> bytes[j++] = c.toByte()
+                else -> return null
             }
             i++
         }
-        return builder.toString()
+        return byteArrayToString(bytes.copyOf(j))
+    }
+
+    private fun removeDot(input: String): String {
+        return if (input.startsWith(".")) {
+            "%2E" + input.substring(1)
+        } else {
+            input
+        }
+    }
+
+    private fun addDot(input: String): String {
+        return if (input.startsWith("%2E")) {
+            "." + input.substring(3)
+        } else {
+            input
+        }
     }
 }

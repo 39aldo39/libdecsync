@@ -45,7 +45,7 @@ fun decsync(
         ownAppId: String
 ): Int {
     val decsyncDir = if (decsyncDirOrEmpty.isNullOrEmpty()) getDefaultDecsyncDir() else decsyncDirOrEmpty
-    val nativeDecsyncDir = getNativeFileFromPath(decsyncDir)
+    val nativeDecsyncDir = nativeFileFromPath(decsyncDir)
     val collection = if (collectionOrEmpty.isNullOrEmpty()) null else collectionOrEmpty
     val localDir = getDecsyncSubdir(nativeDecsyncDir, syncType, collection).child("local", ownAppId)
     return try {
@@ -240,7 +240,7 @@ fun latestAppId(decsync: V, appId: CString, len: Int) =
 fun getStaticInfo(decsyncDirOrEmpty: String?, syncType: String, collectionOrEmpty: String?, key: String, value: CString, len: Int) {
     val decsyncDir = if (decsyncDirOrEmpty.isNullOrEmpty()) getDefaultDecsyncDir() else decsyncDirOrEmpty
     val collection = if (collectionOrEmpty.isNullOrEmpty()) null else collectionOrEmpty
-    val result = Decsync.getStaticInfo(getNativeFileFromPath(decsyncDir), syncType, collection)
+    val result = Decsync.getStaticInfo(nativeFileFromPath(decsyncDir), syncType, collection)
             .getOrElse(parseJson(key), { JsonNull }).toString()
     fillBuffer(result, value, len)
 }
@@ -250,7 +250,7 @@ fun getStaticInfo(decsyncDirOrEmpty: String?, syncType: String, collectionOrEmpt
 fun checkDecsyncInfoC(decsyncDirOrEmpty: String?): Int {
     val decsyncDir = if (decsyncDirOrEmpty.isNullOrEmpty()) getDefaultDecsyncDir() else decsyncDirOrEmpty
     return try {
-        checkDecsyncInfo(getNativeFileFromPath(decsyncDir))
+        checkDecsyncInfo(nativeFileFromPath(decsyncDir))
         0
     } catch (e: DecsyncException) {
         e.errorCode
@@ -261,7 +261,7 @@ fun checkDecsyncInfoC(decsyncDirOrEmpty: String?): Int {
 @CName(externName = "decsync_so_list_decsync_collections")
 fun listDecsyncCollectionsC(decsyncDirOrEmpty: String?, syncType: String, collections: CArray<CString>, max_len: Int): Int {
     val decsyncDir = if (decsyncDirOrEmpty.isNullOrEmpty()) getDefaultDecsyncDir() else decsyncDirOrEmpty
-    val names = listDecsyncCollections(getNativeFileFromPath(decsyncDir), syncType)
+    val names = listDecsyncCollections(nativeFileFromPath(decsyncDir), syncType)
     val len = min(names.size, max_len)
     for (i in 0 until len) {
         fillBuffer(names[i], collections[i]!!, 256)
@@ -273,7 +273,7 @@ fun listDecsyncCollectionsC(decsyncDirOrEmpty: String?, syncType: String, collec
 @CName(externName = "decsync_so_list_collections")
 fun listCollectionsC(decsyncDirOrEmpty: String?, syncType: String, collections: CString, max_len: Int): Int {
     val decsyncDir = if (decsyncDirOrEmpty.isNullOrEmpty()) getDefaultDecsyncDir() else decsyncDirOrEmpty
-    val names = listDecsyncCollections(getNativeFileFromPath(decsyncDir), syncType)
+    val names = listDecsyncCollections(nativeFileFromPath(decsyncDir), syncType)
     val len = min(names.size, max_len)
     for (i in 0 until len) {
         fillBuffer(names[i], (collections + i*256)!!, 256)
