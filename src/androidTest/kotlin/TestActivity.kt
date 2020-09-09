@@ -39,7 +39,8 @@ class TestActivity : AppCompatActivity() {
     }
 
     class TestsTask(
-            private val mContext: Context
+            private val mContext: Context,
+            private var mSuccess: Boolean = true
     ) : AsyncTask<Void, Void, Unit>() {
         override fun onPreExecute() {
             Toast.makeText(mContext, "Running tests!", Toast.LENGTH_SHORT).show()
@@ -62,7 +63,8 @@ class TestActivity : AppCompatActivity() {
         }
 
         override fun onPostExecute(result: Unit) {
-            Toast.makeText(mContext, "Tests done!", Toast.LENGTH_SHORT).show()
+            val message = if (mSuccess) "All tests successful!" else "Some tests failed!"
+            Toast.makeText(mContext, message, Toast.LENGTH_SHORT).show()
         }
 
         private fun <T> runTests(clazz: Class<T>, instance: T) {
@@ -83,6 +85,7 @@ class TestActivity : AppCompatActivity() {
                     method.invoke(instance)
                 } catch (e: Exception) {
                     success = false
+                    mSuccess = false
                     val sw = StringWriter()
                     val pw = PrintWriter(sw)
                     e.printStackTrace(pw)
