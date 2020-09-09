@@ -22,7 +22,7 @@ import kotlinx.serialization.json.*
 import kotlin.native.concurrent.SharedImmutable
 
 @SharedImmutable
-val json = Json(JsonConfiguration.Stable)
+val json = Json.Default
 
 const val SUPPORTED_VERSION = 1
 const val DEFAULT_VERSION = 1
@@ -109,7 +109,7 @@ class Decsync<T> internal constructor(
     private val localInfo: MutableMap<String, JsonElement> = getLocalInfo()
     private fun getLocalInfo(): MutableMap<String, JsonElement> {
         val text = localDir.child("info").readText() ?: return mutableMapOf()
-        return json.parseJson(text).jsonObject.toMutableMap()
+        return json.parseToJsonElement(text).jsonObject.toMutableMap()
     }
     private fun writeLocalInfo() {
         val text = JsonObject(localInfo).toString()
@@ -127,7 +127,7 @@ class Decsync<T> internal constructor(
             version = localVersion
         } else {
             version = getLatestOwnDecsyncVersion() ?: getLatestDecsyncVersion() ?: decsyncVersion
-            localInfo["version"] = JsonLiteral(version.toInt())
+            localInfo["version"] = JsonPrimitive(version.toInt())
             writeLocalInfo()
         }
         instance = getInstance(version)
@@ -171,9 +171,14 @@ class Decsync<T> internal constructor(
         constructor(path: List<String>, key: JsonElement, value: JsonElement) : this(path, Entry(key, value))
 
         internal fun toJson(): JsonElement {
-            val pathJson = JsonArray(path.map(::JsonLiteral))
-            val array = listOf(pathJson, JsonLiteral(entry.datetime), entry.key, entry.value)
-            return JsonArray(array)
+            return buildJsonArray {
+                addJsonArray {
+                    path.forEach { add(it) }
+                }
+                add(entry.datetime)
+                add(entry.key)
+                add(entry.value)
+            }
         }
 
         override fun toString(): String = toJson().toString()
@@ -181,10 +186,10 @@ class Decsync<T> internal constructor(
         companion object {
             internal fun fromLine(line: String): EntryWithPath? =
                     try {
-                        val array = json.parseJson(line).jsonArray
+                        val array = json.parseToJsonElement(line).jsonArray
                         if (array.size != 4) throw Exception("Size of array not 4")
-                        val path = array[0].jsonArray.content.map { it.content }
-                        val datetime = array[1].content
+                        val path = array[0].jsonArray.map { it.jsonPrimitive.content }
+                        val datetime = array[1].jsonPrimitive.content
                         val key = array[2]
                         val value = array[3]
                         EntryWithPath(path, datetime, key, value)
@@ -207,8 +212,11 @@ class Decsync<T> internal constructor(
         constructor(key: JsonElement, value: JsonElement) : this(currentDatetime(), key, value)
 
         internal fun toJson(): JsonElement {
-            val array = listOf(JsonLiteral(datetime), key, value)
-            return JsonArray(array)
+            return buildJsonArray {
+                add(datetime)
+                add(key)
+                add(value)
+            }
         }
 
         override fun toString(): String = toJson().toString()
@@ -216,9 +224,9 @@ class Decsync<T> internal constructor(
         companion object {
             internal fun fromLine(line: String): Entry? =
                     try {
-                        val array = json.parseJson(line).jsonArray
+                        val array = json.parseToJsonElement(line).jsonArray
                         if (array.size != 3) throw Exception("Size of array not 3")
-                        val datetime = array[0].content
+                        val datetime = array[0].jsonPrimitive.content
                         val key = array[1]
                         val value = array[2]
                         Entry(datetime, key, value)
@@ -299,7 +307,7 @@ class Decsync<T> internal constructor(
                 val newDecsync = getInstance<T>(newVersion)
                 newDecsync.listeners.addAll(instance.listeners)
                 upgrade(oldDecsync, newDecsync)
-                localInfo["version"] = JsonLiteral(newVersion.toInt())
+                localInfo["version"] = JsonPrimitive(newVersion.toInt())
                 writeLocalInfo()
                 version = newVersion
                 instance = newDecsync
@@ -308,12 +316,12 @@ class Decsync<T> internal constructor(
                 instance.executeAllNewEntries(WithExtra(extra))
             }
 
-            val lastActive = localInfo["last-active"]?.content
+            val lastActive = localInfo["last-active"]?.jsonPrimitive?.content
             val currentDate = currentDatetime().take(10) // YYYY-MM-DD
             if (lastActive == null || currentDate > lastActive) {
-                localInfo["last-active"] = JsonLiteral(currentDate)
+                localInfo["last-active"] = JsonPrimitive(currentDate)
                 writeLocalInfo()
-                setEntry(listOf("info"), JsonLiteral("last-active-$ownAppId"), JsonLiteral(currentDate))
+                setEntry(listOf("info"), JsonPrimitive("last-active-$ownAppId"), JsonPrimitive(currentDate))
             }
         }
     }
@@ -459,7 +467,7 @@ class Decsync<T> internal constructor(
             val appIdsV1 = DecsyncV1.getActiveApps(decsyncDir, syncType, collection)
             val infoV1 = DecsyncV1.getStaticInfo(decsyncDir, syncType, collection)
             for (appId in appIdsV1) {
-                val lastActive = infoV1[JsonLiteral("last-active-$appId")]?.content
+                val lastActive = infoV1[JsonPrimitive("last-active-$appId")]?.jsonPrimitive?.content
                 appDatas += AppData(appId, lastActive, DecsyncVersion.V1)
             }
 
@@ -595,11 +603,12 @@ private fun getDecsyncInfo(decsyncDir: NativeFile): JsonObject? {
     val file = decsyncDir.child(".decsync-info")
     val bytes = file.read() ?: return null
     val text = byteArrayToString(bytes)
-    return json.parseJson(text).jsonObject
+    return json.parseToJsonElement(text).jsonObject
 }
 
-private val defaultDecsyncInfo: JsonObject =
-        JsonObject(mapOf("version" to JsonLiteral(DEFAULT_VERSION)))
+private val defaultDecsyncInfo: JsonObject = buildJsonObject {
+    put("version", DEFAULT_VERSION)
+}
 
 @ExperimentalStdlibApi
 private fun getDecsyncInfoOrDefault(decsyncDir: NativeFile): JsonObject =
@@ -612,7 +621,7 @@ private fun getDecsyncInfoOrDefault(decsyncDir: NativeFile): JsonObject =
 @ExperimentalStdlibApi
 private fun getDecsyncVersion(info: Map<String, JsonElement>): DecsyncVersion? {
     val version = try {
-        info["version"]?.int
+        info["version"]?.jsonPrimitive?.int
     } catch (e: Exception) {
         throw getInvalidInfoException(e)
     } ?: return null
