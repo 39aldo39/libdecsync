@@ -19,13 +19,12 @@
 package org.decsync.library
 
 import kotlinx.cinterop.*
-import platform.linux.timeb
 import platform.posix.*
 
 actual fun Int.off_t(): off_t = this.toLong()
 actual fun gethostnameCustom(name: CValuesRef<ByteVar>, size: Int): Int = gethostname(name, size.toULong())
 
-fun getDefaultDecsyncDir(): String =
+actual fun getDefaultDecsyncDir(): String =
         getenv("DECSYNC_DIR")?.toKString() ?: getUserDataDir() + "/decsync"
 private fun getUserDataDir(): String =
         getenv("XDG_DATA_HOME")?.toKString() ?: getenv("HOME")!!.toKString() + "/.local/share"

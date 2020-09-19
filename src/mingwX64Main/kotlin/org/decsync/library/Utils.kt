@@ -24,5 +24,5 @@ import platform.posix.*
 actual fun Int.off_t(): off_t = this
 actual fun gethostnameCustom(name: CValuesRef<ByteVar>, size: Int): Int = gethostname(name, size)
 
-fun getDefaultDecsyncDir(): String =
+actual fun getDefaultDecsyncDir(): String =
         getenv("DECSYNC_DIR")?.toKString() ?: getenv("USERPROFILE")!!.toKString() + "/DecSync"

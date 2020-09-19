@@ -94,8 +94,12 @@ kotlin {
                 implementation "org.jetbrains.kotlin:kotlin-test-annotations-common"
             }
         }
-        nativeMain
-        nativeTest
+        nativeMain {
+            dependsOn commonMain
+        }
+        nativeTest {
+            dependsOn commonTest
+        }
         linuxX64Main {
             dependsOn nativeMain
         }
