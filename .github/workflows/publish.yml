@@ -14,12 +14,12 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
-      - run: gradlew.bat linkReleaseSharedMingwX64
+      - run: CALL gradlew.bat linkReleaseSharedMingwX64
       - uses: actions/upload-artifact@v2
         with:
           name: decsync.dll
           path: build/bin/mingwX64/releaseShared/decsync.dll
-      - run: gradlew.bat publishMingwX64PublicationToMavenRepository
+      - run: CALL gradlew.bat publishMingwX64PublicationToMavenRepository
   publish-linux-and-misc:
     needs: [publish-windows]
     runs-on: ubuntu-latest
