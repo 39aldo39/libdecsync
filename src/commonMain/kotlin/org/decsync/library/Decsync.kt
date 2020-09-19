@@ -405,6 +405,10 @@ class Decsync<T> internal constructor(
      * Returns the most up-to-date appId. This is the appId which has stored the most recent entry.
      * In case of a tie, the appId corresponding to the current application is used, if possible.
      */
+    @Deprecated(
+            message = "Its use should not be necessary. Partially replaced by [getEntriesCount].",
+            level = DeprecationLevel.WARNING
+    )
     fun latestAppId(): String = instance.latestAppId()
 
     companion object {

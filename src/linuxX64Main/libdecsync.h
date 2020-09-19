@@ -327,6 +327,8 @@ inline static void decsync_init_stored_entries(Decsync decsync) {
 }
 
 /**
+ * Deprecated. Its use should not be necessary. Partially replaced by [getEntriesCount].
+ *
  * Returns the most up-to-date appId. This is the appId which has stored the most recent entry. In
  * case of a tie, the appId corresponding to the current application is used, if possible.
  *
