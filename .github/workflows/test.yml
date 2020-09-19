@@ -13,3 +13,4 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: CALL gradlew.bat mingwX64Test
+        shell: cmd
