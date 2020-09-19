@@ -1,0 +1,33 @@
+name: publish
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  BINTRAY_USER: ${{ secrets.BINTRAY_USER }}
+  BINTRAY_KEY: ${{ secrets.BINTRAY_KEY }}
+
+jobs:
+  publish-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: gradlew.bat linkReleaseSharedMingwX64
+      - uses: actions/upload-artifact@v2
+        with:
+          name: decsync.dll
+          path: build/bin/mingwX64/releaseShared/decsync.dll
+      - run: gradlew.bat publishMingwX64PublicationToMavenRepository
+  publish-linux-and-misc:
+    needs: [publish-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: ./gradlew linkReleaseSharedLinuxX64
+      - uses: actions/upload-artifact@v2
+        with:
+          name: libdecsync.so
+          path: build/bin/linuxX64/releaseShared/libdecsync.so
+      - run: ./gradlew publish
