@@ -2,6 +2,7 @@ package org.decsync.library
 
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonPrimitive
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -200,8 +201,8 @@ abstract class DecsyncUpgradeTest(
     fun basic() {
         val decsync1 = getDecsync("app-id-1")
         val path = listOf("path")
-        val key = JsonLiteral("key")
-        val value = JsonLiteral("value")
+        val key = JsonPrimitive("key")
+        val value = JsonPrimitive("value")
         decsync1.setEntry(path, key, value)
         checkStoredEntry(decsync1, path, key, value)
 
@@ -220,8 +221,8 @@ abstract class DecsyncUpgradeTest(
     fun independentUpgrade() {
         val decsync1 = getDecsync("app-id-1")
         val path = listOf("path")
-        val key = JsonLiteral("key")
-        val value = JsonLiteral("value")
+        val key = JsonPrimitive("key")
+        val value = JsonPrimitive("value")
         decsync1.setEntry(path, key, value)
 
         upgradeDecsyncInfo()
@@ -236,10 +237,10 @@ abstract class DecsyncUpgradeTest(
     fun oldValue() {
         val decsync1 = getDecsync("app-id-1")
         val path = listOf("path")
-        val key = JsonLiteral("key")
-        val value1 = JsonLiteral("value1")
-        val value2 = JsonLiteral("value2")
-        val value3 = JsonLiteral("value3")
+        val key = JsonPrimitive("key")
+        val value1 = JsonPrimitive("value1")
+        val value2 = JsonPrimitive("value2")
+        val value3 = JsonPrimitive("value3")
         val datetime1 = "2020-08-23T00:00:01"
         val datetime2 = "2020-08-23T00:00:02"
         val datetime3 = "2020-08-23T00:00:03"
@@ -263,20 +264,20 @@ abstract class DecsyncUpgradeTest(
     @Test
     fun oldInfo() {
         val decsync1 = getDecsync("app-id-1")
-        val key = JsonLiteral("name")
-        val value1 = JsonLiteral("Foo")
-        val value2 = JsonLiteral("Bar")
-        val value3 = JsonLiteral("Baz")
+        val key = JsonPrimitive("name")
+        val value1 = JsonPrimitive("Foo")
+        val value2 = JsonPrimitive("Bar")
+        val value3 = JsonPrimitive("Baz")
         val datetime1 = "2020-08-23T00:00:01"
         val datetime2 = "2020-08-23T00:00:02"
         val datetime3 = "2020-08-23T00:00:03"
         decsync1.setEntriesForPath(listOf("info"), listOf(Decsync.Entry(datetime1, key, value1)))
         assertEquals(
                 mapOf<JsonElement, JsonElement>(
-                        JsonLiteral("name") to value1
+                        JsonPrimitive("name") to value1
                 ),
                 Decsync.getStaticInfo(dirFactory(), "sync-type", null)
-                        .filter { !it.key.primitive.content.startsWith("last-active-") }
+                        .filter { !it.key.jsonPrimitive.content.startsWith("last-active-") }
         )
 
         upgradeDecsyncInfo()
@@ -286,20 +287,20 @@ abstract class DecsyncUpgradeTest(
         decsync2.setEntriesForPath(listOf("info"), listOf(Decsync.Entry(datetime2, key, value2)))
         assertEquals(
                 mapOf<JsonElement, JsonElement>(
-                        JsonLiteral("name") to value2
+                        JsonPrimitive("name") to value2
                 ),
                 Decsync.getStaticInfo(dirFactory(), "sync-type", null)
-                        .filter { !it.key.primitive.content.startsWith("last-active-") }
+                        .filter { !it.key.jsonPrimitive.content.startsWith("last-active-") }
         )
 
         // decsync1 still uses the old DecSync version, but we still have to update the value
         decsync1.setEntriesForPath(listOf("info"), listOf(Decsync.Entry(datetime3, key, value3)))
         assertEquals(
                 mapOf<JsonElement, JsonElement>(
-                        JsonLiteral("name") to value3
+                        JsonPrimitive("name") to value3
                 ),
                 Decsync.getStaticInfo(dirFactory(), "sync-type", null)
-                        .filter { !it.key.primitive.content.startsWith("last-active-") }
+                        .filter { !it.key.jsonPrimitive.content.startsWith("last-active-") }
         )
     }
 }

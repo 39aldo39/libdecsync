@@ -41,8 +41,8 @@ internal class DecsyncV2<T>(
     private fun getSequences(sequencesFile: DecsyncFile): Map<String, Int> {
         val text = sequencesFile.readText() ?: return emptyMap()
         return try {
-            val obj = json.parseJson(text).jsonObject
-            obj.mapValues { it.value.int }
+            val obj = json.parseToJsonElement(text).jsonObject
+            obj.mapValues { it.value.jsonPrimitive.int }
         } catch (e: Exception) {
             Log.e(e.message!!)
             emptyMap()
@@ -50,7 +50,7 @@ internal class DecsyncV2<T>(
     }
 
     private fun setSequences(sequencesFile: DecsyncFile, sequences: Map<String, Int>) {
-        val obj = sequences.mapValues { JsonLiteral(it.value) }
+        val obj = sequences.mapValues { JsonPrimitive(it.value) }
         val text = JsonObject(obj).toString()
         sequencesFile.writeText(text)
     }
@@ -59,9 +59,9 @@ internal class DecsyncV2<T>(
         val file = localDir.child("sequences")
         val text = file.readText() ?: return emptyMap()
         return try {
-            val obj = json.parseJson(text).jsonObject
+            val obj = json.parseToJsonElement(text).jsonObject
             obj.mapValues { (_, subSequences) ->
-                subSequences.jsonObject.mapValues { it.value.int }
+                subSequences.jsonObject.mapValues { it.value.jsonPrimitive.int }
             }
         } catch (e: Exception) {
             Log.e(e.message!!)
@@ -72,7 +72,7 @@ internal class DecsyncV2<T>(
     private fun setLocalSequences(sequences: Map<String, Map<String, Int>>) {
         val file = localDir.child("sequences")
         val obj = sequences.mapValues { (_, subSequences) ->
-            JsonObject(subSequences.mapValues { JsonLiteral(it.value) })
+            JsonObject(subSequences.mapValues { JsonPrimitive(it.value) })
         }
         val text = JsonObject(obj).toString()
         file.writeText(text)
@@ -229,7 +229,7 @@ internal class DecsyncV2<T>(
                 val datetime = file.readLines()
                         .mapNotNull { Decsync.EntryWithPath.fromLine(it) }
                         .map { it.entry.datetime }
-                        .max() ?: continue
+                        .maxOrNull() ?: continue
                 if (latestDatetime == null || datetime > latestDatetime ||
                         appId == ownAppId && datetime == latestDatetime) {
                     latestAppId = appId

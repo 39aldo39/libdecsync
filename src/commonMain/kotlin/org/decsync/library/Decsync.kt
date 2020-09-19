@@ -485,7 +485,7 @@ class Decsync<T> internal constructor(
                 val appIdsV2 = DecsyncV2.getActiveApps(decsyncDir, syncType, collection)
                 val infoV2 = DecsyncV2.getStaticInfo(decsyncDir, syncType, collection)
                 for (appId in appIdsV2) {
-                    val lastActive = infoV2[JsonLiteral("last-active-$appId")]?.content
+                    val lastActive = infoV2[JsonPrimitive("last-active-$appId")]?.jsonPrimitive?.content
                     appDatas += AppData(appId, lastActive, DecsyncVersion.V2)
                 }
             }
