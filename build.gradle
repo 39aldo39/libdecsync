@@ -95,11 +95,18 @@ kotlin {
             }
         }
         nativeMain
+        nativeTest
         linuxX64Main {
             dependsOn nativeMain
         }
+        linuxX64Test {
+            dependsOn nativeTest
+        }
         mingwX64Main {
             dependsOn nativeMain
+        }
+        mingwX64Test {
+            dependsOn nativeTest
         }
     }
 }

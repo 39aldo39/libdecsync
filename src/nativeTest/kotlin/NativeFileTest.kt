@@ -1,7 +1,7 @@
 package org.decsync.library
 
 fun getTestDir(): NativeFile {
-    return nativeFileFromPath("/tmp/tests/decsync")
+    return nativeFileFromPath(".tests/decsync")
 }
 
 @ExperimentalStdlibApi
