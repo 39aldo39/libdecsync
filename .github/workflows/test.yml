@@ -8,3 +8,8 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: ./gradlew linuxX64Test
+  test-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: ./gradlew mingwX64Test
