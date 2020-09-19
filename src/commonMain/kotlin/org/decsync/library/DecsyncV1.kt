@@ -107,7 +107,7 @@ internal class DecsyncV1<T>(
                 .mapNotNull { Decsync.Entry.fromLine(it) }
                 .filter { keys == null || it.key in keys }
                 .groupBy { it.key }.values
-                .map { it.maxBy { it.datetime }!! }
+                .map { it.maxByOrNull { it.datetime }!! }
                 .toMutableList()
         executeEntries(entriesLocation, entries, optExtra)
     }
@@ -163,7 +163,7 @@ internal class DecsyncV1<T>(
     }
 
     private fun updateLatestStoredEntry(entries: List<Decsync.Entry>) {
-        val maxDatetime = entries.map { it.datetime }.max() ?: return
+        val maxDatetime = entries.map { it.datetime }.maxOrNull() ?: return
         val latestStoredEntryFile = dir.child("info", ownAppId, "latest-stored-entry")
         val latestDatetime = latestStoredEntryFile.readText()
         if (latestDatetime == null || maxDatetime > latestDatetime) {

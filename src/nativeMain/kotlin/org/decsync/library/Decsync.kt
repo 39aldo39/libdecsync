@@ -313,4 +313,4 @@ private fun fillBuffer(input: String, buffer: CString, buf_len: Int) {
     buffer[len] = 0
 }
 
-private fun parseJson(string: String): JsonElement = json.parseJson(string)
+private fun parseJson(string: String): JsonElement = json.parseToJsonElement(string)

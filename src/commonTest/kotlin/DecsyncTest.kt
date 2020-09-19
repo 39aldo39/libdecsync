@@ -1,7 +1,7 @@
 package org.decsync.library
 
 import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonLiteral
+import kotlinx.serialization.json.JsonPrimitive
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -82,11 +82,11 @@ abstract class DecsyncTest(
     fun setAndExecute() {
         val decsync1 = getDecsync()
         val path = listOf("path", "unicode \u263A \uD83C\uDF08", "unsafe `~!@#$%^&*()-_=+/")
-        val key = JsonLiteral("key")
-        val value = JsonLiteral("value")
+        val key = JsonPrimitive("key")
+        val value = JsonPrimitive("value")
         decsync1.setEntry(path, key, value)
         checkStoredEntry(decsync1, path, key, value)
-        checkStoredEntry(decsync1, path, JsonLiteral("key-other"), null)
+        checkStoredEntry(decsync1, path, JsonPrimitive("key-other"), null)
     }
 
     @Test
@@ -94,8 +94,8 @@ abstract class DecsyncTest(
         val decsync1 = getDecsync("app-id-1")
         val decsync2 = getDecsync("app-id-2")
         val path = listOf("path", "unicode \u263A \uD83C\uDF08", "unsafe `~!@#$%^&*()-_=+/")
-        val key = JsonLiteral("key")
-        val value = JsonLiteral("value")
+        val key = JsonPrimitive("key")
+        val value = JsonPrimitive("value")
 
         decsync1.setEntry(path, key, value)
         checkStoredEntry(decsync2, path, key, null)
@@ -109,9 +109,9 @@ abstract class DecsyncTest(
         val decsync1 = getDecsync("app-id-1")
         val decsync2 = getDecsync("app-id-2")
         val path = listOf("path")
-        val key = JsonLiteral("key")
-        val value1 = JsonLiteral("value1")
-        val value2 = JsonLiteral("value2")
+        val key = JsonPrimitive("key")
+        val value1 = JsonPrimitive("value1")
+        val value2 = JsonPrimitive("value2")
         val datetime1 = "2020-08-23T00:00:00"
         val datetime2 = "2020-08-23T00:00:01"
 
@@ -132,9 +132,9 @@ abstract class DecsyncTest(
         val decsync1 = getDecsync("app-id-1")
         val decsync2 = getDecsync("app-id-2")
         val path = listOf("path")
-        val key = JsonLiteral("key")
-        val value1 = JsonLiteral("value1")
-        val value2 = JsonLiteral("value2")
+        val key = JsonPrimitive("key")
+        val value1 = JsonPrimitive("value1")
+        val value2 = JsonPrimitive("value2")
         val datetime1 = "2020-08-23T00:00:00"
         val datetime2 = "2020-08-23T00:00:01"
 
@@ -153,9 +153,9 @@ abstract class DecsyncTest(
     @Test
     fun listCollections() {
         assertEquals(emptyList(), listDecsyncCollections(dirFactory(), "sync-type"))
-        getDecsync("app-id-1", "foo").setEntry(listOf("info"), JsonLiteral("name"), JsonLiteral("foo"))
+        getDecsync("app-id-1", "foo").setEntry(listOf("info"), JsonPrimitive("name"), JsonPrimitive("foo"))
         assertEquals(listOf("foo"), listDecsyncCollections(dirFactory(), "sync-type"))
-        getDecsync("app-id-2", "bar").setEntry(listOf("info"), JsonLiteral("name"), JsonLiteral("bar"))
+        getDecsync("app-id-2", "bar").setEntry(listOf("info"), JsonPrimitive("name"), JsonPrimitive("bar"))
         val collections = listDecsyncCollections(dirFactory(), "sync-type")
         assertEquals(setOf("foo", "bar"), collections.toSet())
         assertEquals(collections.toSet().size, collections.size)
@@ -167,18 +167,18 @@ abstract class DecsyncTest(
                 emptyMap(),
                 Decsync.getStaticInfo(dirFactory(), "sync-type", null)
         )
-        getDecsync("app-id-1").setEntry(listOf("info"), JsonLiteral("name"), JsonLiteral("foo"))
+        getDecsync("app-id-1").setEntry(listOf("info"), JsonPrimitive("name"), JsonPrimitive("foo"))
         assertEquals(
                 mapOf<JsonElement, JsonElement>(
-                        JsonLiteral("name") to JsonLiteral("foo")
+                        JsonPrimitive("name") to JsonPrimitive("foo")
                 ),
                 Decsync.getStaticInfo(dirFactory(), "sync-type", null)
         )
-        getDecsync("app-id-2").setEntry(listOf("info"), JsonLiteral("color"), JsonLiteral("bar"))
+        getDecsync("app-id-2").setEntry(listOf("info"), JsonPrimitive("color"), JsonPrimitive("bar"))
         assertEquals(
                 mapOf<JsonElement, JsonElement>(
-                        JsonLiteral("name") to JsonLiteral("foo"),
-                        JsonLiteral("color") to JsonLiteral("bar")
+                        JsonPrimitive("name") to JsonPrimitive("foo"),
+                        JsonPrimitive("color") to JsonPrimitive("bar")
                 ),
                 Decsync.getStaticInfo(dirFactory(), "sync-type", null)
         )

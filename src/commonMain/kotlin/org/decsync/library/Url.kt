@@ -29,14 +29,14 @@ object Url {
             if (char in safeChars) {
                 val charArray = CharArray(1)
                 charArray[0] = char
-                String(charArray)
+                charArray.concatToString()
             } else {
                 val i = byte.toInt()
                 val charArray = CharArray(3)
                 charArray[0] = '%'
                 charArray[1] = hexArray[(i ushr 4) and 0x0F]
                 charArray[2] = hexArray[i and 0x0F]
-                String(charArray)
+                charArray.concatToString()
             }
         }
 
