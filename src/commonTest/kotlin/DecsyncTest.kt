@@ -1,6 +1,7 @@
 package org.decsync.library
 
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonPrimitive
 import kotlin.test.AfterTest
@@ -184,6 +185,29 @@ abstract class DecsyncTest(
                 Decsync.getStaticInfo(dirFactory(), "sync-type", null)
         )
     }
+
+    @Test
+    fun entriesCount() {
+        val decsync1 = getDecsync("app-id-1")
+        val decsync2 = getDecsync("app-id-2")
+        val path = listOf("path")
+        val pathOther = listOf("pathOther")
+        val key1 = JsonPrimitive("key1")
+        val key2 = JsonPrimitive("key2")
+        val value = JsonPrimitive("value")
+        val datetime1 = "2020-08-23T00:00:00"
+        val datetime2 = "2020-08-23T00:00:01"
+
+        assertEquals(0, Decsync.getEntriesCount(dirFactory(), "sync-type", null, listOf("path")))
+        decsync1.setEntriesForPath(pathOther, listOf(Decsync.Entry(datetime1, key1, value)))
+        assertEquals(0, Decsync.getEntriesCount(dirFactory(), "sync-type", null, listOf("path")))
+        decsync1.setEntriesForPath(path, listOf(Decsync.Entry(datetime1, key1, value)))
+        decsync1.setEntriesForPath(path, listOf(Decsync.Entry(datetime1, key2, value)))
+        assertEquals(2, Decsync.getEntriesCount(dirFactory(), "sync-type", null, listOf("path")))
+        decsync2.setEntriesForPath(path, listOf(Decsync.Entry(datetime2, key1, JsonNull)))
+        assertEquals(1, Decsync.getEntriesCount(dirFactory(), "sync-type", null, listOf("path")))
+    }
+
 }
 
 @ExperimentalStdlibApi

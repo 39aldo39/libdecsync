@@ -281,6 +281,35 @@ internal class DecsyncV2<T>(
             return info
         }
 
+        fun getEntriesCount(
+                decsyncDir: NativeFile,
+                syncType: String,
+                collection: String?,
+                prefix: List<String>
+        ): Int {
+            val values = mutableMapOf<Decsync.StoredEntry, JsonElement>()
+            val datetimes = mutableMapOf<Decsync.StoredEntry, String>()
+            val dir = getDecsyncSubdir(decsyncDir, syncType, collection).child("v2")
+            val appIds = dir.listDirectories()
+            for (appId in appIds) {
+                for (hash in Hash.allHashes) {
+                    dir.child(appId, hash).readLines()
+                            .mapNotNull { Decsync.EntryWithPath.fromLine(it) }
+                            .filter { it.path.take(prefix.size) == prefix }
+                            .forEach { entryWithPath ->
+                                val entry = entryWithPath.entry
+                                val storedEntry = Decsync.StoredEntry(entryWithPath.path, entry.key)
+                                val oldDatetime = datetimes[storedEntry]
+                                if (oldDatetime == null || entry.datetime > oldDatetime) {
+                                    values[storedEntry] = entry.value
+                                    datetimes[storedEntry] = entry.datetime
+                                }
+                            }
+                }
+            }
+            return values.values.filter { it != JsonNull }.size
+        }
+
         fun getActiveApps(
                 decsyncDir: NativeFile,
                 syncType: String,

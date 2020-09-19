@@ -246,6 +246,14 @@ fun getStaticInfo(decsyncDirOrEmpty: String?, syncType: String, collectionOrEmpt
 }
 
 @ExperimentalStdlibApi
+@CName(externName = "decsync_so_get_entries_count")
+fun getEntriesCount(decsyncDirOrEmpty: String?, syncType: String, collectionOrEmpty: String?, path: CPath, len: Int): Int {
+    val decsyncDir = if (decsyncDirOrEmpty.isNullOrEmpty()) getDefaultDecsyncDir() else decsyncDirOrEmpty
+    val collection = if (collectionOrEmpty.isNullOrEmpty()) null else collectionOrEmpty
+    return Decsync.getEntriesCount(nativeFileFromPath(decsyncDir), syncType, collection, toPath(path, len))
+}
+
+@ExperimentalStdlibApi
 @CName(externName = "decsync_so_check_decsync_info")
 fun checkDecsyncInfoC(decsyncDirOrEmpty: String?): Int {
     val decsyncDir = if (decsyncDirOrEmpty.isNullOrEmpty()) getDefaultDecsyncDir() else decsyncDirOrEmpty
