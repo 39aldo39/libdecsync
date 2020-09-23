@@ -148,8 +148,8 @@ class Decsync<T> internal constructor(
             instance.addListener(subpath, onEntryUpdate)
 
     internal class OnEntryUpdateListener<T>(
-            private val subpath: List<String>,
-            private val onEntryUpdate: (path: List<String>, entry: Entry, extra: T) -> Unit
+            val subpath: List<String>,
+            val onEntryUpdate: (path: List<String>, entry: Entry, extra: T) -> Unit
     ) {
         fun matchesPath(path: List<String>): Boolean = path.take(subpath.size) == subpath
         fun onEntriesUpdate(path: List<String>, entries: List<Entry>, extra: T) {

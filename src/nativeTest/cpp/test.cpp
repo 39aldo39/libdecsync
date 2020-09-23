@@ -162,6 +162,7 @@ int test_thread() {
 	}
 	const char* path0[0] {};
 	decsync_add_listener(decsync, path0, 0, listener);
+	decsync_init_done(decsync);
 
 	std::thread thread([decsync]{
 		const char* path1[2] {"foo1", "bar1"};

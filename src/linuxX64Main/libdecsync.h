@@ -72,6 +72,18 @@ inline static int decsync_new(Decsync* decsync, const char* decsync_dir, const c
 }
 
 /**
+ * Marks the [decsync] instance as finalized. This function has to be called after adding all the
+ * listeners, otherwise the [decsync] instance cannot be used from other threads. However, this call
+ * only makes it possible to use the instance from other threads, but does not make it safe to have
+ * such concurrent calls. For this, it is still necessary to use a mutex for example.
+ *
+ * @param decsync the [Decsync] instance to use.
+ */
+inline static void decsync_init_done(Decsync decsync) {
+    decsync_so_init_done(decsync);
+}
+
+/**
  * Frees an existing [Decsync] instance.
  */
 inline static void decsync_free(Decsync decsync) {

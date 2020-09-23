@@ -43,6 +43,7 @@ namespace Decsync {
 		public delegate void Listener<T>(string[] path, string datetime, string key, string value, T extra);
 
 		public static int new(out Decsync<T> decsync, string? decsync_dir, string sync_type, string? collection, string own_app_id);
+		public void init_done();
 
 		public void add_listener(string[] path, Listener<T> listener);
 		public void set_entry(string[] path, string key, string value);
