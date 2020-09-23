@@ -10,7 +10,7 @@ jobs:
       - run: ./gradlew linuxX64Test
       - run make
       - run prefix=usr make install
-      - run g++ src/nativeTest/cpp/test.cpp -I usr/include -L usr/lib -l decsync -o test
+      - run g++ src/nativeTest/cpp/test.cpp -I usr/include -L usr/lib -l decsync -pthread -o test
       - run LD_LIBRARY_PATH=usr/lib ./test
   test-windows:
     runs-on: windows-latest

@@ -2,6 +2,7 @@
 #include <iostream>
 #include <map>
 #include <string>
+#include <thread>
 #include <vector>
 
 // Very basic tests, mostly to make sure the bindings are correct
@@ -151,6 +152,31 @@ int test_static() {
 	return 0;
 }
 
+// Test whether we can use the DecSync from another thread
+int test_thread() {
+	Decsync decsync;
+	int error = decsync_new(&decsync, ".tests/decsync_thread", "sync-type", nullptr, "app-id");
+	if (error) {
+		std::cout << "Test failed: decsync_new (" << error << ")" << std::endl;
+		return 1;
+	}
+	const char* path0[0] {};
+	decsync_add_listener(decsync, path0, 0, listener);
+
+	std::thread thread([decsync]{
+		const char* path1[2] {"foo1", "bar1"};
+		decsync_set_entry(decsync, path1, 2, "\"key1\"", "\"value1\"");
+	});
+	thread.join();
+
+	return 0;
+}
+
+int print_result() {
+	std::cout << "Tests successful!" << std::endl;
+	return 0;
+}
+
 int main() {
-	return test_instance() || test_static();
+	return test_instance() || test_static() || test_thread() || print_result();
 }
