@@ -606,6 +606,7 @@ private fun getDecsyncInfo(decsyncDir: NativeFile): JsonObject? {
     return json.parseToJsonElement(text).jsonObject
 }
 
+@SharedImmutable
 private val defaultDecsyncInfo: JsonObject = buildJsonObject {
     put("version", DEFAULT_VERSION)
 }
