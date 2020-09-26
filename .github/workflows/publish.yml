@@ -33,3 +33,8 @@ jobs:
           name: libdecsync.so
           path: build/bin/linuxX64/releaseShared/libdecsync.so
       - run: ./gradlew publish
+      - run: ./create-deb.sh
+      - uses: actions/upload-artifact@v2
+        with:
+          name: libdecsync.deb
+          path: deb.deb

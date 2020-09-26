@@ -1,0 +1,6 @@
+Package: libdecsync
+Version: 1.7.1
+Architecture: amd64
+Maintainer: Aldo Gunsing <dev@aldogunsing.nl>
+Homepage: https://github.com/39aldo39/libdecsync
+Description: DecSync synchronization library - shared library

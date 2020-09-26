@@ -84,3 +84,5 @@ lint/tmp/
 
 .idea/jarRepositories.xml
 .tests/
+deb
+*.deb
