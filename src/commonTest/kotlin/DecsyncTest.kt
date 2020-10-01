@@ -110,6 +110,28 @@ abstract class DecsyncTest(
     }
 
     @Test
+    fun doubleSet() {
+        val syncType = "sync-type"
+        val decsyncDir = dirFactory()
+        val localDir = getDecsyncSubdir(decsyncDir, syncType, null).child("local", "app-id")
+        val decsync = Decsync<MutableList<String>>(decsyncDir, localDir, syncType, null, "app-id")
+        decsync.addListener(emptyList()) { _, entry, extra ->
+            extra += entry.datetime
+        }
+        val path = listOf("path")
+        val key = JsonPrimitive("key")
+        val value = JsonPrimitive("value")
+        val datetime1 = "2020-08-23T00:00:00"
+        val datetime2 = "2020-08-23T00:00:01"
+        decsync.setEntriesForPath(path, listOf(Decsync.Entry(datetime1, key, value)))
+        decsync.setEntriesForPath(path, listOf(Decsync.Entry(datetime2, key, value)))
+        val storedEntry = Decsync.StoredEntry(path, key)
+        val extra = mutableListOf<String>()
+        decsync.executeStoredEntries(listOf(storedEntry), extra)
+        assertEquals(listOf(datetime1), extra)
+    }
+
+    @Test
     fun listCollections() {
         assertEquals(emptyList(), listDecsyncCollections(dirFactory(), "sync-type"))
         getDecsync("app-id-1", "foo").setEntry(listOf("info"), JsonPrimitive("name"), JsonPrimitive("foo"))
