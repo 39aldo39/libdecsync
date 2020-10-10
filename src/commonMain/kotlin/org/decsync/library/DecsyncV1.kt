@@ -116,12 +116,7 @@ internal class DecsyncV1<T>(
         updateStoredEntries(entriesLocation, entries)
 
         if (optExtra is WithExtra) {
-            val extra = optExtra.value
-            val listener = listeners.firstOrNull { it.matchesPath(entriesLocation.path) } ?: run {
-                Log.e("Unknown action for path ${entriesLocation.path}")
-                return
-            }
-            listener.onEntriesUpdate(entriesLocation.path, entries, extra)
+            callListener(entriesLocation.path, entries, optExtra.value)
         }
     }
 

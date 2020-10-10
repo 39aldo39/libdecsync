@@ -552,6 +552,14 @@ internal abstract class DecsyncInst<T> {
 
     abstract fun executeAllNewEntries(optExtra: OptExtra<T>)
 
+    open fun callListener(path: List<String>, entries: List<Decsync.Entry>, extra: T) {
+        val listener = listeners.firstOrNull { it.matchesPath(path) } ?: run {
+            Log.e("Unknown action for path $path")
+            return
+        }
+        listener.onEntriesUpdate(path, entries, extra)
+    }
+
     open fun executeStoredEntry(path: List<String>, key: JsonElement, extra: T) =
             executeStoredEntriesForPathExact(path, extra, listOf(key))
 
