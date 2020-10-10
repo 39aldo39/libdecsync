@@ -323,6 +323,13 @@ class Decsync<T> internal constructor(
                 writeLocalInfo()
                 setEntry(listOf("info"), JsonPrimitive("last-active-$ownAppId"), JsonPrimitive(currentDate))
             }
+
+            val supportedVersion = localInfo["supported-version"]?.jsonPrimitive?.int
+            if (supportedVersion == null || SUPPORTED_VERSION > supportedVersion) {
+                localInfo["supported-version"] = JsonPrimitive(SUPPORTED_VERSION)
+                writeLocalInfo()
+                setEntry(listOf("info"), JsonPrimitive("supported-version-$ownAppId"), JsonPrimitive(SUPPORTED_VERSION))
+            }
         }
     }
 
@@ -562,7 +569,8 @@ internal abstract class DecsyncInst<T> {
             if (it.key !is JsonPrimitive) return@filter true
             if (!it.key.isString) return@filter true
             val keyString = it.key.content
-            !keyString.startsWith("last-active-")
+            !keyString.startsWith("last-active-") &&
+                    !keyString.startsWith("supported-version-")
         }
         listener.onEntriesUpdate(path, filteredEntries, extra)
     }
