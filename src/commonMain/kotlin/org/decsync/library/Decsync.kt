@@ -163,7 +163,7 @@ class Decsync<T> internal constructor(
     /**
      * Represents an [Entry] with its path.
      */
-    class EntryWithPath(val path: List<String>, val entry: Entry) {
+    data class EntryWithPath(val path: List<String>, val entry: Entry) {
         /**
          * Convenience constructors for nicer syntax.
          */
@@ -205,7 +205,7 @@ class Decsync<T> internal constructor(
      * Represents a key/value pair stored by DecSync. Additionally, it has a datetime property
      * indicating the most recent update. It does not store its path, see [EntryWithPath].
      */
-    class Entry(val datetime: String, val key: JsonElement, val value: JsonElement) {
+    data class Entry(val datetime: String, val key: JsonElement, val value: JsonElement) {
         /**
          * Convenience constructor which sets the [datetime] property to the current datetime.
          */
@@ -242,7 +242,7 @@ class Decsync<T> internal constructor(
      * Represents the path and key stored by DecSync. It does not store its value, as it is unknown
      * when retrieving a stored entry.
      */
-    class StoredEntry(val path: List<String>, val key: JsonElement)
+    data class StoredEntry(val path: List<String>, val key: JsonElement)
 
     /**
      * Associates the given [value] with the given [key] in the map corresponding to the given
