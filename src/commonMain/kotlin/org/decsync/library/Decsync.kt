@@ -557,7 +557,14 @@ internal abstract class DecsyncInst<T> {
             Log.e("Unknown action for path $path")
             return
         }
-        listener.onEntriesUpdate(path, entries, extra)
+        val filteredEntries = entries.filter {
+            if (path != listOf("info")) return@filter true
+            if (it.key !is JsonPrimitive) return@filter true
+            if (!it.key.isString) return@filter true
+            val keyString = it.key.content
+            !keyString.startsWith("last-active-")
+        }
+        listener.onEntriesUpdate(path, filteredEntries, extra)
     }
 
     open fun executeStoredEntry(path: List<String>, key: JsonElement, extra: T) =
