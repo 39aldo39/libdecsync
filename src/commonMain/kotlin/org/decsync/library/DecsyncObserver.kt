@@ -62,7 +62,7 @@ abstract class DecsyncObserver(
     /**
      * Similar to [updateList], but directly uses a difference.
      */
-    fun applyDiff(diffResult: Diff.Result<DecsyncItem>, isFromDecsyncListener: Boolean) {
+    fun applyDiff(diffResult: Diff.Result<DecsyncItem>, isFromDecsyncListener: Boolean = false) {
         val (insertions, deletions, changes) = diffResult
         applyDiff(insertions, deletions, changes, isFromDecsyncListener)
     }
