@@ -61,11 +61,12 @@ abstract class DecsyncChannel<T, V> {
                     val context = msg.context
                     if (!isDecsyncEnabled(context)) continue
                     try {
-                        mDecsync ?: run {
+                        val decsync = mDecsync ?: run {
                             getNewDecsync(context).also {
                                 mDecsync = it
                             }
-                        }.apply(msg.action)
+                        }
+                        msg.action(decsync)
                     } catch (e: Exception) {
                         onException(context, e)
                     }
