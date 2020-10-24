@@ -23,12 +23,14 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.DocumentsContract
+import androidx.annotation.RequiresApi
 import java.io.File
 import java.io.FileOutputStream
 
 // Implementations using the Storage Access Framework (SAF)
 
 @ExperimentalStdlibApi
+@RequiresApi(21)
 class RealFileSaf(
         private val context: Context,
         private val uri: Uri,
@@ -75,6 +77,7 @@ class RealFileSaf(
 }
 
 @ExperimentalStdlibApi
+@RequiresApi(21)
 class RealDirectorySaf(
         private val context: Context,
         private val uri: Uri,
@@ -146,12 +149,14 @@ class RealDirectorySaf(
  * @throws InsufficientAccessException if there is insufficient access to the [uri].
  */
 @ExperimentalStdlibApi
+@RequiresApi(21)
 fun nativeFileFromDirUri(context: Context, uri: Uri): NativeFile {
     checkUriPermissions(context, uri)
     val name = DecsyncPrefUtils.getNameFromUri(context, uri)
     return NativeFile(RealDirectorySaf(context, uri, name), null)
 }
 
+@RequiresApi(21)
 fun checkUriPermissions(context: Context, uri: Uri) {
     if (context.checkCallingOrSelfUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) != PackageManager.PERMISSION_GRANTED ||
             context.checkCallingOrSelfUriPermission(uri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION) != PackageManager.PERMISSION_GRANTED) {

@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.AsyncTask
 import android.os.Build
 import android.provider.DocumentsContract
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -77,6 +78,7 @@ fun <T> Decsync(
  * @throws InsufficientAccessException if there is insufficient access to the [uri].
  */
 @ExperimentalStdlibApi
+@RequiresApi(21)
 fun <T> Decsync(
         context: Context,
         decsyncDir: Uri,
@@ -105,6 +107,7 @@ fun checkDecsyncInfo(
  * @throws InsufficientAccessException if there is insufficient access to the [uri].
  */
 @ExperimentalStdlibApi
+@RequiresApi(21)
 fun checkDecsyncInfo(
         context: Context,
         decsyncDir: Uri
@@ -131,6 +134,7 @@ fun listDecsyncCollections(
  * @throws InsufficientAccessException if there is insufficient access to the [uri].
  */
 @ExperimentalStdlibApi
+@RequiresApi(21)
 fun listDecsyncCollections(
         context: Context,
         decsyncDir: Uri,
@@ -159,6 +163,7 @@ fun Decsync.Companion.getStaticInfo(
  * @throws InsufficientAccessException if there is insufficient access to the [uri].
  */
 @ExperimentalStdlibApi
+@RequiresApi(21)
 fun Decsync.Companion.getStaticInfo(
         context: Context,
         decsyncDir: Uri,
@@ -180,6 +185,7 @@ fun Decsync.Companion.getActiveApps(
 }
 
 @ExperimentalStdlibApi
+@RequiresApi(21)
 fun Decsync.Companion.getActiveApps(
         context: Context,
         decsyncDir: Uri,
@@ -196,17 +202,20 @@ object DecsyncPrefUtils {
     const val CHOOSE_DECSYNC_DIRECTORY = 40
     const val NOTIFICATION_ID_DELETE_APPS = 16
 
+    @RequiresApi(21)
     fun getDecsyncDir(context: Context): Uri? {
         val settings = PreferenceManager.getDefaultSharedPreferences(context)
         return settings.getString(DECSYNC_DIRECTORY, null)?.let(Uri::parse)
     }
 
+    @RequiresApi(21)
     fun putDecsyncDir(context: Context, uri: Uri) {
         val editor = PreferenceManager.getDefaultSharedPreferences(context).edit()
         editor.putString(DECSYNC_DIRECTORY, uri.toString())
         editor.apply()
     }
 
+    @RequiresApi(21)
     fun getNameFromUri(context: Context, uri: Uri): String {
         val cr = context.contentResolver
         return cr.query(uri, arrayOf(
@@ -220,16 +229,19 @@ object DecsyncPrefUtils {
         } ?: throw Exception("Could not get name of $uri")
     }
 
+    @RequiresApi(21)
     fun chooseDecsyncDir(fragment: Fragment) {
         val intent = getIntent(fragment.requireActivity())
         fragment.startActivityForResult(intent, CHOOSE_DECSYNC_DIRECTORY)
     }
 
+    @RequiresApi(21)
     fun chooseDecsyncDir(activity: Activity) {
         val intent = getIntent(activity)
         activity.startActivityForResult(intent, CHOOSE_DECSYNC_DIRECTORY)
     }
 
+    @RequiresApi(21)
     private fun getIntent(activity: Activity): Intent {
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -245,6 +257,7 @@ object DecsyncPrefUtils {
     }
 
     @ExperimentalStdlibApi
+    @RequiresApi(21)
     fun chooseDecsyncDirResult(context: Context, requestCode: Int, resultCode: Int, data: Intent?, callback: ((Uri) -> Unit)? = null) {
         if (requestCode != CHOOSE_DECSYNC_DIRECTORY) return
         val treeUri = data?.data
@@ -274,6 +287,7 @@ object DecsyncPrefUtils {
     }
 
     @ExperimentalStdlibApi
+    @RequiresApi(21)
     fun manageDecsyncData(context: Context, decsyncDir: Uri, syncType: String, collection: String?) {
         val nativeDecsyncDir = nativeFileFromDirUri(context, decsyncDir)
         manageDecsyncData(context, nativeDecsyncDir, syncType, collection)
