@@ -221,10 +221,10 @@ class RealDirectorySys(
 fun nativeFileFromFile(file: File): NativeFile {
     val node = realNodeFromFile(file) ?: run {
         file.mkdirs()
-        if (!file.canWrite()) {
-            throw InsufficientAccessException()
-        }
         RealDirectorySys(file)
+    }
+    if (!file.canWrite()) {
+        throw InsufficientAccessException()
     }
     return NativeFile(node, null)
 }
