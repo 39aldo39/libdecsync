@@ -1,7 +1,7 @@
 package org.decsync.library
 
 object Diff {
-    data class Result<T>(
+    data class Result<out T>(
             val insertions: List<T>,
             val deletions: List<T>,
             val changes: List<Pair<T, T>>
