@@ -147,16 +147,17 @@ class Decsync<T> internal constructor(
     fun addListener(subpath: List<String>, onEntryUpdate: (path: List<String>, entry: Entry, extra: T) -> Unit) =
             instance.addListener(subpath, onEntryUpdate)
 
-    internal class OnEntryUpdateListener<T>(
+    fun addMultiListener(subpath: List<String>, onEntriesUpdate: (path: List<String>, entries: List<Entry>, extra: T) -> Unit) =
+            instance.addMultiListener(subpath, onEntriesUpdate)
+
+    internal class OnEntriesUpdateListener<T>(
             val subpath: List<String>,
-            val onEntryUpdate: (path: List<String>, entry: Entry, extra: T) -> Unit
+            val callback: (path: List<String>, entries: List<Entry>, extra: T) -> Unit
     ) {
         fun matchesPath(path: List<String>): Boolean = path.take(subpath.size) == subpath
         fun onEntriesUpdate(path: List<String>, entries: List<Entry>, extra: T) {
             val convertedPath = path.drop(subpath.size)
-            for (entry in entries) {
-                onEntryUpdate(convertedPath, entry, extra)
-            }
+            callback(convertedPath, entries, extra)
         }
     }
 
@@ -541,10 +542,18 @@ internal abstract class DecsyncInst<T> {
     abstract val collection: String?
     abstract val ownAppId: String
 
-    val listeners: MutableList<Decsync.OnEntryUpdateListener<T>> = mutableListOf()
+    val listeners: MutableList<Decsync.OnEntriesUpdateListener<T>> = mutableListOf()
 
     open fun addListener(subpath: List<String>, onEntryUpdate: (path: List<String>, entry: Decsync.Entry, extra: T) -> Unit) {
-        listeners += Decsync.OnEntryUpdateListener(subpath, onEntryUpdate)
+        listeners += Decsync.OnEntriesUpdateListener(subpath) { path, entries, extra ->
+            for (entry in entries) {
+                onEntryUpdate(path, entry, extra)
+            }
+        }
+    }
+
+    open fun addMultiListener(subpath: List<String>, onEntriesUpdate: (path: List<String>, entries: List<Decsync.Entry>, extra: T) -> Unit) {
+        listeners += Decsync.OnEntriesUpdateListener(subpath, onEntriesUpdate)
     }
 
     open fun setEntry(path: List<String>, key: JsonElement, value: JsonElement) =
