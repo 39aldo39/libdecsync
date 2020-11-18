@@ -569,10 +569,6 @@ internal abstract class DecsyncInst<T> {
     abstract fun executeAllNewEntries(optExtra: OptExtra<T>)
 
     open fun callListener(path: List<String>, entries: List<Decsync.Entry>, extra: T) {
-        val listener = listeners.firstOrNull { it.matchesPath(path) } ?: run {
-            Log.e("Unknown action for path $path")
-            return
-        }
         val filteredEntries = entries.filter {
             if (path != listOf("info")) return@filter true
             if (it.key !is JsonPrimitive) return@filter true
@@ -580,6 +576,11 @@ internal abstract class DecsyncInst<T> {
             val keyString = it.key.content
             !keyString.startsWith("last-active-") &&
                     !keyString.startsWith("supported-version-")
+        }
+        if (filteredEntries.isEmpty()) return
+        val listener = listeners.firstOrNull { it.matchesPath(path) } ?: run {
+            Log.e("Unknown action for path $path")
+            return
         }
         listener.onEntriesUpdate(path, filteredEntries, extra)
     }
