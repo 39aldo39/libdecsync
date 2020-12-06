@@ -18,7 +18,7 @@ apply plugin: 'kotlinx-serialization'
 apply plugin: 'maven-publish'
 
 group = "org.decsync"
-version = "1.8.1"
+version = "1.8.2"
 
 repositories {
     jcenter()
@@ -31,7 +31,7 @@ android {
     defaultConfig {
         minSdkVersion 16
         targetSdkVersion 29
-        versionCode 19
+        versionCode 20
         versionName version
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
