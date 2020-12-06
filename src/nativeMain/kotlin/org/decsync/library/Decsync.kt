@@ -44,10 +44,18 @@ private class NativeDecsyncInfo(
         val collection: String?,
         val ownAppId: String
 ) {
-    val listeners: MutableList<Decsync.OnEntryUpdateListener<V>> = mutableListOf()
+    val listeners: MutableList<Decsync.OnEntriesUpdateListener<V>> = mutableListOf()
 
     fun addListener(subpath: List<String>, onEntryUpdate: (path: List<String>, entry: Decsync.Entry, extra: V) -> Unit) {
-        listeners += Decsync.OnEntryUpdateListener<V>(subpath, onEntryUpdate)
+        listeners += Decsync.OnEntriesUpdateListener(subpath) { path, entries, extra ->
+            for (entry in entries) {
+                onEntryUpdate(path, entry, extra)
+            }
+        }
+    }
+
+    fun addMultilistener(subpath: List<String>, onEntriesUpdate: (path: List<String>, entries: List<Decsync.Entry>, extra: V) -> Unit) {
+        listeners += Decsync.OnEntriesUpdateListener(subpath, onEntriesUpdate)
     }
 
     fun toDecsync(): Decsync<V> {
@@ -55,7 +63,7 @@ private class NativeDecsyncInfo(
         val localDir = getDecsyncSubdir(nativeDecsyncDir, syncType, collection).child("local", ownAppId)
         return Decsync<V>(nativeDecsyncDir, localDir, syncType, collection, ownAppId).also {
             for (listener in listeners) {
-                it.addListener(listener.subpath, listener.onEntryUpdate)
+                it.addMultiListener(listener.subpath, listener.callback)
             }
         }
     }
