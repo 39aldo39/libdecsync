@@ -47,6 +47,9 @@ class RealFileImpl(private val path: String, name: String) : RealFile(name) {
         val fd = open(path, openFlagsBinary or O_RDONLY)
         if (fd < 0) throw Exception("Failed to open $path")
         val len = length(fd)
+        if (len <= readBytes) {
+            return ByteArray(0)
+        }
         val buf = ByteArray(len - readBytes)
         lseek(fd, readBytes.off_t(), SEEK_SET)
         buf.usePinned { bufPin ->
