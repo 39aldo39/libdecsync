@@ -16,12 +16,13 @@ apply plugin: 'com.android.library'
 apply plugin: 'kotlin-multiplatform'
 apply plugin: 'kotlinx-serialization'
 apply plugin: 'maven-publish'
+apply plugin: 'signing'
 
 group = "org.decsync"
 version = "1.8.3"
 
 repositories {
-    jcenter()
+    mavenCentral()
     google()
 }
 
@@ -120,11 +121,39 @@ kotlin {
 publishing {
     repositories {
         maven {
-            url = "https://api.bintray.com/maven/39aldo39/maven/libdecsync"
+            url = "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/"
             credentials {
-                username = project.hasProperty("BINTRAY_USER") ? BINTRAY_USER : System.getenv("BINTRAY_USER")
-                password = project.hasProperty("BINTRAY_KEY") ? BINTRAY_KEY : System.getenv("BINTRAY_KEY")
+                username = project.hasProperty("ossrhUsername") ? ossrhUsername : System.getenv("ossrhUsername")
+                password = project.hasProperty("ossrhPassword") ? ossrhPassword : System.getenv("ossrhPassword")
             }
         }
     }
+
+    publications.withType(MavenPublication) {
+        pom {
+            name = "libdecsync"
+            description = "Multiplatform library for synchronizing using DecSync"
+            url = "https://github.com/39aldo39/libdecsync"
+            licenses {
+                license {
+                    name = "LGPL-2.0+"
+                    url = "https://opensource.org/licenses/LGPL-2.0"
+                }
+            }
+            scm {
+                url = "https://github.com/39aldo39/libdecsync"
+            }
+            developers {
+                developer {
+                    id = "39aldo39"
+                    name = "Aldo Gunsing"
+                    email = "dev@aldogunsing.nl"
+                }
+            }
+        }
+    }
+}
+
+signing {
+    sign publishing.publications
 }
