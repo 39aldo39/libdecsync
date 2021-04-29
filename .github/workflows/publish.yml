@@ -6,33 +6,62 @@ on:
       - 'v*'
 
 env:
-  BINTRAY_USER: ${{ secrets.BINTRAY_USER }}
-  BINTRAY_KEY: ${{ secrets.BINTRAY_KEY }}
+  OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+  OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+  SIGNING_KEY_ID: ${{ secrets.SIGNING_KEY_ID }}
+  SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+  SIGNING_SECRET_KEY_RING_FILE: ${{ secrets.SIGNING_SECRET_KEY_RING_FILE }}
+  GPG_KEY_CONTENTS: ${{ secrets.GPG_KEY_CONTENTS }}
 
 jobs:
   publish-windows:
     runs-on: windows-latest
     steps:
+      # Checkout
       - uses: actions/checkout@v2
+
+      # Setup signing
+      - run:
+        - CALL echo %GPG_KEY_CONTENTS% > %SIGNING_SECRET_KEY_RING_FILE%.base64
+        - CALL certutil -decode %SIGNING_SECRET_KEY_RING_FILE%.base64 %SIGNING_SECRET_KEY_RING_FILE%
+        shell: cmd
+
+      # Build
       - run: CALL gradlew.bat linkReleaseSharedMingwX64
         shell: cmd
+
+      # Upload decsync.dll
       - uses: actions/upload-artifact@v2
         with:
           name: decsync.dll
           path: build/bin/mingwX64/releaseShared/decsync.dll
+
+      # Publish
       - run: CALL gradlew.bat publishMingwX64PublicationToMavenRepository
         shell: cmd
   publish-linux-and-misc:
     needs: [publish-windows]
     runs-on: ubuntu-latest
     steps:
+      # Checkout
       - uses: actions/checkout@v2
+
+      # Setup signing
+      - run: sudo bash -c 'echo "$GPG_KEY_CONTENTS" | base64 -d > "$SIGNING_SECRET_KEY_RING_FILE"'
+
+      # Build
       - run: ./gradlew linkReleaseSharedLinuxX64
+
+      # Upload libdecsync.so
       - uses: actions/upload-artifact@v2
         with:
           name: libdecsync.so
           path: build/bin/linuxX64/releaseShared/libdecsync.so
+
+      # Publish
       - run: ./gradlew publish
+
+      # Create and upload libdecsync.deb
       - run: ./create-deb.sh
       - uses: actions/upload-artifact@v2
         with:
