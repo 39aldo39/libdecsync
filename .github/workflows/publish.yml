@@ -20,12 +20,6 @@ jobs:
       # Checkout
       - uses: actions/checkout@v2
 
-      # Setup signing
-      - run:
-        - CALL echo %GPG_KEY_CONTENTS% > %SIGNING_SECRET_KEY_RING_FILE%.base64
-        - CALL certutil -decode %SIGNING_SECRET_KEY_RING_FILE%.base64 %SIGNING_SECRET_KEY_RING_FILE%
-        shell: cmd
-
       # Build
       - run: CALL gradlew.bat linkReleaseSharedMingwX64
         shell: cmd
@@ -36,8 +30,8 @@ jobs:
           name: decsync.dll
           path: build/bin/mingwX64/releaseShared/decsync.dll
 
-      # Publish
-      - run: CALL gradlew.bat publishMingwX64PublicationToMavenRepository
+      # Setup signing and publish
+      - run: CALL echo %GPG_KEY_CONTENTS% > %SIGNING_SECRET_KEY_RING_FILE%.base64 && CALL certutil -decode %SIGNING_SECRET_KEY_RING_FILE%.base64 %SIGNING_SECRET_KEY_RING_FILE% && CALL gradlew.bat publishMingwX64PublicationToMavenRepository
         shell: cmd
   publish-linux-and-misc:
     needs: [publish-windows]
@@ -45,9 +39,6 @@ jobs:
     steps:
       # Checkout
       - uses: actions/checkout@v2
-
-      # Setup signing
-      - run: sudo bash -c 'echo "$GPG_KEY_CONTENTS" | base64 -d > "$SIGNING_SECRET_KEY_RING_FILE"'
 
       # Build
       - run: ./gradlew linkReleaseSharedLinuxX64
@@ -58,12 +49,12 @@ jobs:
           name: libdecsync.so
           path: build/bin/linuxX64/releaseShared/libdecsync.so
 
-      # Publish
-      - run: ./gradlew publish
-
       # Create and upload libdecsync.deb
       - run: ./create-deb.sh
       - uses: actions/upload-artifact@v2
         with:
           name: libdecsync.deb
           path: deb.deb
+
+      # Setup signing and publish
+      - run: echo "$GPG_KEY_CONTENTS" | base64 -d > "$SIGNING_SECRET_KEY_RING_FILE" && ./gradlew publish
