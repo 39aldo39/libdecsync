@@ -20,6 +20,7 @@ package org.decsync.library
 
 import kotlinx.serialization.json.*
 import kotlin.native.concurrent.SharedImmutable
+import kotlin.random.Random
 
 @SharedImmutable
 val json = Json.Default
@@ -519,6 +520,27 @@ fun listDecsyncCollections(decsyncDir: NativeFile, syncType: String): List<Strin
         getDecsyncSubdir(decsyncDir, syncType, null).listDirectories()
 
 /**
+ * Generates an appId corresponding to the current device and application combination. If [isRandom]
+ * is enabled, a random id is attached as well. This is especially useful when the device and
+ * application combination may not be unique, which is often the case on Android.
+ *
+ * This method cannot be consider stable: its implementation can change and the returned value has
+ * to be stored by the application.
+ *
+ * @param appName the name of the application.
+ * @param isRandom whether to append a random id or not.
+ */
+fun generateAppId(appName: String, isRandom: Boolean): String {
+    val appId = "${getDeviceName()}-$appName"
+    return if (isRandom) {
+        val id = Random.Default.nextInt(100000)
+        "$appId-${id.toString().padStart(5, '0')}"
+    } else {
+        appId
+    }
+}
+
+/**
  * Returns the appId of the current device and application combination.
  *
  * Note: on Android the device name is based on the model of the device, which may not be unique.
@@ -528,6 +550,7 @@ fun listDecsyncCollections(decsyncDir: NativeFile, syncType: String): List<Strin
  * @param id an optional integer (between 0 and 100000 exclusive) to distinguish different instances
  * with the same device and application names.
  */
+@Deprecated(message = "Use generateAppId instead")
 fun getAppId(appName: String, id: Int? = null): String {
     val appId = "${getDeviceName()}-$appName"
     return when (id) {

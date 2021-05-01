@@ -335,6 +335,10 @@ fun listCollectionsC(decsyncDirOrEmpty: String?, syncType: String, collections: 
     return len
 }
 
+@CName(externName = "decsync_so_generate_app_id")
+fun generateAppIdC(appName: String, isRandom: Boolean, appId: CString, len: Int) =
+        fillBuffer(generateAppId(appName, isRandom), appId, len)
+
 @CName(externName = "decsync_so_get_app_id")
 fun getAppIdC(appName: String, appId: CString, len: Int) =
         fillBuffer(getAppId(appName, null), appId, len)

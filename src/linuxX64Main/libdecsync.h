@@ -418,6 +418,26 @@ inline static int decsync_list_collections(const char* decsync_dir, const char* 
 }
 
 /**
+ * Generates an appId corresponding to the current device and application combination. If [isRandom]
+ * is enabled, a random id is attached as well. This is especially useful when the device and
+ * application combination may not be unique, which is often the case on Android.
+ *
+ * This method cannot be consider stable: its implementation can change and the returned value has
+ * to be stored by the application.
+ *
+ * @param app_name the name of the application.
+ * @param is_random whether to append a random id or not.
+ * @param app_id buffer to which the resulting appId is written.
+ * @param len length of the buffer [app_id], including terminating null character. It should be at
+ *   least 256. If it is too short, the result is truncated.
+ */
+inline static void decsync_generate_app_id(const char* app_name, bool is_random, char* app_id, int len) {
+    return decsync_so_generate_app_id(app_name, is_random, app_id, len);
+}
+
+/**
+ * Deprecated. Use [decsync_generate_app_id] instead.
+ *
  * Returns the appId of the current device and application combination.
  *
  * @param app_name the name of the application.
@@ -430,6 +450,8 @@ inline static void decsync_get_app_id(const char* app_name, char* app_id, int le
 }
 
 /**
+ * Deprecated. Use [decsync_generate_app_id] instead.
+ *
  * Like [decsync_get_app_id], but additionally takes an [id] to distinguish different instances on
  * the same device and application.
  *

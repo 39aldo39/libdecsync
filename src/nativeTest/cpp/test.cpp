@@ -146,8 +146,9 @@ int test_static() {
 	}
 
 	char appId[256];
-	decsync_get_app_id_with_id("app", 12345, appId, 256);
+	decsync_generate_app_id("app", true, appId, 256);
 	decsync_get_app_id("app", appId, 256);
+	decsync_get_app_id_with_id("app", 12345, appId, 256);
 
 	return 0;
 }
