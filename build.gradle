@@ -19,7 +19,7 @@ apply plugin: 'maven-publish'
 apply plugin: 'signing'
 
 group = "org.decsync"
-version = "1.8.3"
+version = "1.9.0"
 
 repositories {
     mavenCentral()
@@ -32,7 +32,7 @@ android {
     defaultConfig {
         minSdkVersion 16
         targetSdkVersion 29
-        versionCode 21
+        versionCode 22
         versionName version
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
