@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dialogs -->
+    <string name="delete_apps_title">Delete DecSync apps</string>
+    <string name="delete">Delete</string>
+    <string name="delete_apps_confirm_title">Are you sure you want to delete the following %d apps?</string>
+
+    <!-- AppData -->
+    <string name="app_id">App Id</string>
+    <string name="last_active">Last Active</string>
+    <string name="last_active_unknown">unknown</string>
+
+    <!-- Notifications -->
+    <string name="notification_delete_title_all">Deleting selected apps</string>
+    <string name="notification_delete_title">Deleting app %s (%s)</string>
+    <string name="notification_perm_delete_title">Permanently deleting collection %s</string>
+    <string name="notification_channel_delete_name">Deleting old data</string>
+    <string name="notification_channel_delete_desc">Notification shown when deleting old data</string>
+</resources>

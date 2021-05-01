@@ -260,11 +260,14 @@ internal class DecsyncV1<T>(
                 decsyncDir: NativeFile,
                 syncType: String,
                 collection: String?,
-                appId: String
+                appId: String,
+                includeNewEntries: Boolean
         ) {
             val dir = getDecsyncSubdir(decsyncDir, syncType, collection)
             deleteSubdir(dir.child("info"), appId)
-            deleteSubdir(dir.child("new-entries"), appId)
+            if (includeNewEntries) {
+                deleteSubdir(dir.child("new-entries"), appId)
+            }
             deleteSubdir(dir.child("read-bytes"), appId)
             deleteSubdir(dir.child("stored-entries"), appId)
         }

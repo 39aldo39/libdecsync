@@ -454,18 +454,9 @@ class Decsync<T> internal constructor(
             return info
         }
 
-        data class AppData(val appId: String, val lastActive: String?, val version: DecsyncVersion) {
-            fun delete(decsyncDir: NativeFile, syncType: String, collection: String?) {
-                when (version) {
-                    DecsyncVersion.V1 -> DecsyncV1.deleteApp(decsyncDir, syncType, collection, appId)
-                }
-            }
+        data class AppData(val appId: String, val lastActive: String?, val version: DecsyncVersion)
 
-            override fun toString(): String =
-                    "$appId ($version)\nLast active: ${lastActive ?: "unknown"}"
-        }
-
-        internal fun getActiveApps(decsyncDir: NativeFile, syncType: String, collection: String?): Pair<DecsyncVersion, List<AppData>> {
+        fun getActiveApps(decsyncDir: NativeFile, syncType: String, collection: String?): Pair<DecsyncVersion, List<AppData>> {
             Log.d("Get active apps in $decsyncDir for syncType $syncType and collection $collection")
             val obj = getDecsyncInfoOrDefault(decsyncDir)
             val version = getDecsyncVersion(obj)!!
@@ -480,11 +471,26 @@ class Decsync<T> internal constructor(
             }
 
             appDatas.sortWith(
-                    compareByDescending(AppData::lastActive)
-                            .thenByDescending(AppData::version)
+                    compareBy(AppData::lastActive)
+                            .thenBy(AppData::version)
                             .thenBy(AppData::appId)
             )
             return Pair(version, appDatas)
+        }
+
+        fun deleteAppData(decsyncDir: NativeFile, syncType: String, collection: String?,
+                          appId: String, version: DecsyncVersion, currentVersion: DecsyncVersion) {
+            when (version) {
+                DecsyncVersion.V1 -> {
+                    val includeNewEntries = currentVersion > DecsyncVersion.V1
+                    DecsyncV1.deleteApp(decsyncDir, syncType, collection, appId, includeNewEntries)
+                }
+            }
+        }
+
+        fun permDeleteCollection(decsyncDir: NativeFile, syncType: String, collection: String?) {
+            val dir = getDecsyncSubdir(decsyncDir, syncType, collection)
+            dir.delete()
         }
     }
 }

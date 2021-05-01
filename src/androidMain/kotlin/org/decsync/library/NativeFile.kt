@@ -33,7 +33,7 @@ import java.io.FileOutputStream
 @RequiresApi(21)
 class RealFileSaf(
         private val context: Context,
-        private val uri: Uri,
+        val uri: Uri,
         name: String,
         private var length: Int
 ) : RealFile(name) {
@@ -80,7 +80,7 @@ class RealFileSaf(
 @RequiresApi(21)
 class RealDirectorySaf(
         private val context: Context,
-        private val uri: Uri,
+        val uri: Uri,
         name: String
 ) : RealDirectory(name) {
 
@@ -167,7 +167,7 @@ fun checkUriPermissions(context: Context, uri: Uri) {
 // Implementations using a traditional file
 
 class RealFileSys(
-        private val file: File,
+        val file: File,
         name: String = file.name
 ) : RealFile(name) {
 
@@ -192,7 +192,7 @@ class RealFileSys(
 }
 
 class RealDirectorySys(
-        private val file: File,
+        val file: File,
         name: String = file.name
 ) : RealDirectory(name) {
 

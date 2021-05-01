@@ -27,6 +27,7 @@ import java.util.*
 actual fun getDeviceName(): String = Build.MODEL
 
 actual fun currentDatetime(): String = iso8601Format.format(Date())
+fun oldDatetime(): String = iso8601Format.format(Date().time - 1000L*60*60*24*30)
 private val iso8601Format: DateFormat =
         SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").apply {
             timeZone = TimeZone.getTimeZone("UTC")
