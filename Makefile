@@ -27,7 +27,7 @@ all: $(BUILD_DIR)/libdecsync_api.h $(BUILD_DIR)/libdecsync.so $(BUILD_DIR)/decsy
 $(BUILD_DIR)/libdecsync_api.h $(BUILD_DIR)/libdecsync.so: $(SOURCES)
 	./gradlew linkReleaseShared$(platform)
 
-$(BUILD_DIR)/decsync.pc: src/linuxX64Main/decsync.pc.in
+$(BUILD_DIR)/decsync.pc: src/linuxMain/decsync.pc.in
 	$(file > $(BUILD_DIR)/decsync.pc,$(PC_PREFIX))
 	cat src/linuxMain/decsync.pc.in >> $(BUILD_DIR)/decsync.pc
 
