@@ -78,7 +78,28 @@ kotlin {
             }
         }
     }
+    linuxArm64 {
+        binaries {
+            sharedLib {
+                baseName = "decsync"
+            }
+        }
+    }
+    linuxArm32Hfp {
+        binaries {
+            sharedLib {
+                baseName = "decsync"
+            }
+        }
+    }
     mingwX64 {
+        binaries {
+            sharedLib {
+                baseName = "decsync"
+            }
+        }
+    }
+    mingwX86 {
         binaries {
             sharedLib {
                 baseName = "decsync"
@@ -104,17 +125,32 @@ kotlin {
         nativeTest {
             dependsOn commonTest
         }
-        linuxX64Main {
+        linuxMain {
             dependsOn nativeMain
         }
-        linuxX64Test {
-            dependsOn nativeTest
+        linux64Main {
+            dependsOn linuxMain
+        }
+        linux32Main {
+            dependsOn linuxMain
+        }
+        linuxX64Main {
+            dependsOn linux64Main
+        }
+        linuxArm64Main {
+            dependsOn linux64Main
+        }
+        linuxArm32HfpMain {
+            dependsOn linux32Main
+        }
+        windowsMain {
+            dependsOn nativeMain
         }
         mingwX64Main {
-            dependsOn nativeMain
+            dependsOn windowsMain
         }
-        mingwX64Test {
-            dependsOn nativeTest
+        mingwX86Main {
+            dependsOn windowsMain
         }
     }
 }

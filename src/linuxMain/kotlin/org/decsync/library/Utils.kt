@@ -1,5 +1,5 @@
 /**
- * libdecsync - NativeFile.kt
+ * libdecsync - Utils.kt
  *
  * Copyright (C) 2019 Aldo Gunsing
  *
@@ -21,13 +21,21 @@ package org.decsync.library
 import kotlinx.cinterop.*
 import platform.posix.*
 
+expect fun Int.size_t(): size_t
+
 actual val openFlagsBinary = 0
 actual fun mkdirCustom(path: String, mode: Int) {
     mkdir(path, mode.toUInt())
 }
 actual fun readCustom(fd: Int, buf: CValuesRef<*>?, len: Int) {
-    read(fd, buf, len.toULong())
+    read(fd, buf, len.size_t())
 }
 actual fun writeCustom(fd: Int, buf: CValuesRef<*>?, size: Int) {
-    write(fd, buf, size.toULong())
+    write(fd, buf, size.size_t())
 }
+actual fun gethostnameCustom(name: CValuesRef<ByteVar>, size: Int): Int = gethostname(name, size.size_t())
+
+actual fun getDefaultDecsyncDir(): String =
+        getenv("DECSYNC_DIR")?.toKString() ?: getUserDataDir() + "/decsync"
+private fun getUserDataDir(): String =
+        getenv("XDG_DATA_HOME")?.toKString() ?: getenv("HOME")!!.toKString() + "/.local/share"

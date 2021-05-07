@@ -21,12 +21,8 @@ package org.decsync.library
 import kotlinx.cinterop.*
 import platform.posix.*
 
-expect val openFlagsBinary: Int
 const val createModeDir = S_IRWXU or S_IRGRP or S_IXGRP or S_IROTH or S_IXOTH
 const val createModeFile = S_IRUSR or S_IWUSR or S_IRGRP or S_IROTH
-expect fun mkdirCustom(path: String, mode: Int)
-expect fun readCustom(fd: Int, buf: CValuesRef<*>?, len: Int)
-expect fun writeCustom(fd: Int, buf: CValuesRef<*>?, size: Int)
 
 class RealFileImpl(private val path: String, name: String) : RealFile(name) {
     override fun delete() {
@@ -53,7 +49,7 @@ class RealFileImpl(private val path: String, name: String) : RealFile(name) {
         val buf = ByteArray(len - readBytes)
         lseek(fd, readBytes.off_t(), SEEK_SET)
         buf.usePinned { bufPin ->
-            readCustom(fd, bufPin.addressOf(0), len - readBytes)
+            readCustom(fd, bufPin.addressOf(0), (len - readBytes))
         }
         close(fd)
         return buf

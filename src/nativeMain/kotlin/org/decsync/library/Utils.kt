@@ -22,6 +22,10 @@ import kotlinx.cinterop.*
 import platform.posix.*
 
 expect fun Int.off_t(): off_t
+expect val openFlagsBinary: Int
+expect fun mkdirCustom(path: String, mode: Int)
+expect fun readCustom(fd: Int, buf: CValuesRef<*>?, len: Int)
+expect fun writeCustom(fd: Int, buf: CValuesRef<*>?, size: Int)
 expect fun gethostnameCustom(name: CValuesRef<ByteVar>, size: Int): Int
 
 actual fun getDeviceName(): String {

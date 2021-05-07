@@ -1,9 +1,23 @@
 prefix?=/usr
-BUILD_DIR=build/bin/linuxX64/releaseShared
 
 INSTALL=install
 RM=rm -f
 
+uname_m := $(shell uname -m)
+ifeq ($(uname_m),x86_64)
+  platform=linuxX64
+else ifeq ($(uname_m:arm%=),)
+  bits := $(shell getconf LONG_BIT)
+  ifeq ($(bits),64)
+    platform=linuxArm64
+  else
+    platform=linuxArm32Hfp
+  endif
+else
+  $(error Unsupported platform $(uname_m))
+endif
+
+BUILD_DIR=build/bin/$(platform)/releaseShared
 SOURCES=$(wildcard src/*/kotlin/org/decsync/library/*.kt)
 PC_PREFIX:=prefix=$(prefix)
 
@@ -11,17 +25,17 @@ PC_PREFIX:=prefix=$(prefix)
 all: $(BUILD_DIR)/libdecsync_api.h $(BUILD_DIR)/libdecsync.so $(BUILD_DIR)/decsync.pc
 
 $(BUILD_DIR)/libdecsync_api.h $(BUILD_DIR)/libdecsync.so: $(SOURCES)
-	./gradlew linkReleaseSharedLinuxX64
+	./gradlew linkReleaseShared$(platform)
 
 $(BUILD_DIR)/decsync.pc: src/linuxX64Main/decsync.pc.in
 	$(file > $(BUILD_DIR)/decsync.pc,$(PC_PREFIX))
-	cat src/linuxX64Main/decsync.pc.in >> $(BUILD_DIR)/decsync.pc
+	cat src/linuxMain/decsync.pc.in >> $(BUILD_DIR)/decsync.pc
 
 .PHONY: install
 install: $(BUILD_DIR)/libdecsync_api.h $(BUILD_DIR)/libdecsync.so $(BUILD_DIR)/decsync.pc
 	$(INSTALL) -d $(DESTDIR)$(prefix)/include
 	$(INSTALL) -m 644 $(BUILD_DIR)/libdecsync_api.h $(DESTDIR)$(prefix)/include
-	$(INSTALL) -m 644 src/linuxX64Main/libdecsync.h $(DESTDIR)$(prefix)/include
+	$(INSTALL) -m 644 src/linuxMain/libdecsync.h $(DESTDIR)$(prefix)/include
 	$(INSTALL) -d $(DESTDIR)$(prefix)/lib
 	$(INSTALL) -m 644 $(BUILD_DIR)/libdecsync.so $(DESTDIR)$(prefix)/lib
 	$(INSTALL) -d $(DESTDIR)$(prefix)/share/pkgconfig

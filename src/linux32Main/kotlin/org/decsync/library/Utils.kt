@@ -18,11 +18,7 @@
 
 package org.decsync.library
 
-import kotlinx.cinterop.*
 import platform.posix.*
 
 actual fun Int.off_t(): off_t = this
-actual fun gethostnameCustom(name: CValuesRef<ByteVar>, size: Int): Int = gethostname(name, size)
-
-actual fun getDefaultDecsyncDir(): String =
-        getenv("DECSYNC_DIR")?.toKString() ?: getenv("USERPROFILE")!!.toKString() + "/DecSync"
+actual fun Int.size_t(): size_t = this.toUInt()
