@@ -202,10 +202,13 @@ abstract class DecsyncFileTest(nativeFile: NativeFile) {
         subPart.child("exceptionNo").writeText("345")
 
         dir.resetCache()
-        val result = dir.child("list").listFilesRecursiveRelative(
+        val result = mutableListOf<ArrayList<String>>()
+        dir.child("list").listFilesRecursiveRelative(
                 dir.child("readBytes"),
                 pathPred
-        )
+        ) { path ->
+            result.add(path)
+        }
         assertEquals(
                 setOf(
                         listOf("tooLow", "bar", "foo"),
@@ -243,7 +246,10 @@ abstract class DecsyncFileTest(nativeFile: NativeFile) {
         subPart.child("exceptionNo").writeText("345")
 
         dir.resetCache()
-        val result = dir.child("list").listFilesRecursiveRelative()
+        val result = mutableListOf<ArrayList<String>>()
+        dir.child("list").listFilesRecursiveRelative { path ->
+            result.add(path)
+        }
         assertEquals(
                 setOf(
                         listOf("skipped", "baz", "foo"),

@@ -92,39 +92,41 @@ class DecsyncFile(val file: NativeFile) {
     fun mkdir() = file.mkdir().let { Unit }
 
     fun listFilesRecursiveRelative(readBytesSrc: DecsyncFile? = null,
-                                   pathPred: (List<String>) -> Boolean = { true }): List<ArrayList<String>> {
+                                   pathPred: (List<String>) -> Boolean = { true },
+                                   action: (ArrayList<String>) -> Boolean): Boolean {
         return when (val node = file.fileSystemNode) {
-            is RealFile -> listOf(arrayListOf())
+            is RealFile -> action(arrayListOf())
             is RealDirectory -> {
                 // Skip equal sequence numbers
-                if (readBytesSrc != null) {
-                    val seqFile = hiddenChild("decsync-sequence")
-                    val seq = seqFile.readText()
-                    val readBytesSeqFile = readBytesSrc.hiddenChild("decsync-sequence")
-                    val readBytesSeq = readBytesSeqFile.readText()
-                    if (seq != null) {
+                val seq = readBytesSrc?.let {
+                    hiddenChild("decsync-sequence").readText()?.also { seq ->
+                        val readBytesSeq = readBytesSrc.hiddenChild("decsync-sequence").readText()
                         if (seq == readBytesSeq) {
-                            return emptyList()
-                        } else {
-                            readBytesSeqFile.writeText(seq)
+                            return true
                         }
                     }
                 }
 
-                node.children(file)
+                val success = node.children(file)
                         .map { it.name }
                         .filter { it[0] != '.' }
                         .mapNotNull { encodedName -> Url.decode(encodedName) }
                         .filter { name -> pathPred(listOf(name)) }
-                        .flatMap { name ->
+                        .all { name ->
                             val newReadBytesSrc = readBytesSrc?.child(name)
                             val newPred = { path: List<String> -> pathPred(listOf(name) + path) }
-                            val paths = child(name).listFilesRecursiveRelative(newReadBytesSrc, newPred)
-                            paths.forEach { it.add(0, name) }
-                            paths
+                            child(name).listFilesRecursiveRelative(newReadBytesSrc, newPred) { path ->
+                                path.add(0, name)
+                                action(path)
+                            }
                         }
+
+                if (seq != null && success) {
+                    readBytesSrc.hiddenChild("decsync-sequence").writeText(seq)
+                }
+                success
             }
-            is NonExistingNode -> emptyList()
+            is NonExistingNode -> true
         }
     }
 

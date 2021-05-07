@@ -44,26 +44,26 @@ private class NativeDecsyncInfo(
         val collection: String?,
         val ownAppId: String
 ) {
-    val listeners: MutableList<Decsync.OnEntriesUpdateListener<V>> = mutableListOf()
+    val listeners: MutableList<Pair<List<String>, (path: List<String>, entry: Decsync.Entry, extra: V) -> Boolean>> = mutableListOf()
+    val multiListeners: MutableList<Pair<List<String>, (path: List<String>, entries: List<Decsync.Entry>, extra: V) -> Boolean>> = mutableListOf()
 
-    fun addListener(subpath: List<String>, onEntryUpdate: (path: List<String>, entry: Decsync.Entry, extra: V) -> Unit) {
-        listeners += Decsync.OnEntriesUpdateListener(subpath) { path, entries, extra ->
-            for (entry in entries) {
-                onEntryUpdate(path, entry, extra)
-            }
-        }
+    fun addListener(subpath: List<String>, onEntryUpdate: (path: List<String>, entry: Decsync.Entry, extra: V) -> Boolean) {
+        listeners += Pair(subpath, onEntryUpdate)
     }
 
-    fun addMultilistener(subpath: List<String>, onEntriesUpdate: (path: List<String>, entries: List<Decsync.Entry>, extra: V) -> Unit) {
-        listeners += Decsync.OnEntriesUpdateListener(subpath, onEntriesUpdate)
+    fun addMultiListener(subpath: List<String>, onEntriesUpdate: (path: List<String>, entries: List<Decsync.Entry>, extra: V) -> Boolean) {
+        multiListeners += Pair(subpath, onEntriesUpdate)
     }
 
     fun toDecsync(): Decsync<V> {
         val nativeDecsyncDir = nativeFileFromPath(decsyncDir)
         val localDir = getDecsyncSubdir(nativeDecsyncDir, syncType, collection).child("local", ownAppId)
         return Decsync<V>(nativeDecsyncDir, localDir, syncType, collection, ownAppId).also {
-            for (listener in listeners) {
-                it.addMultiListener(listener.subpath, listener.callback)
+            for ((subpath, onEntryUpdate) in listeners) {
+                it.addListenerWithSuccess(subpath, onEntryUpdate)
+            }
+            for ((subpath, onEntriesUpdate) in multiListeners) {
+                it.addMultiListenerWithSuccess(subpath, onEntriesUpdate)
             }
         }
     }
@@ -151,6 +151,29 @@ fun decsyncStoredEntry(storedEntry: V) =
 @ExperimentalStdlibApi
 @CName(externName = "decsync_so_add_listener")
 fun addListener(decsync: V, subpath: CPath, len: Int, onEntryUpdate: CPointer<CFunction<(CPath, Int, CString, CString, CString, V) -> Unit>>) {
+    try {
+        decsync.asStableRef<NativeDecsyncInfo>().get().addListener(toPath(subpath, len)) { path, entry, extra ->
+            memScoped {
+                val cPath = allocArray<CPointerVarOf<CString>>(path.size)
+                for (i in path.indices) {
+                    cPath[i] = path[i].cstr.ptr
+                }
+                val cDatetime = entry.datetime.cstr.ptr
+                val cKey = entry.key.toString().cstr.ptr
+                val cValue = entry.value.toString().cstr.ptr
+                onEntryUpdate(cPath, path.size, cDatetime, cKey, cValue, extra)
+                true
+            }
+        }
+    } catch (e: InvalidMutabilityException) {
+        Log.e("Could not add listener: all listeners should be added before calling decsync_init_done")
+        throw e
+    }
+}
+
+@ExperimentalStdlibApi
+@CName(externName = "decsync_so_add_listener_with_success")
+fun addListenerWithSuccess(decsync: V, subpath: CPath, len: Int, onEntryUpdate: CPointer<CFunction<(CPath, Int, CString, CString, CString, V) -> Boolean>>) {
     try {
         decsync.asStableRef<NativeDecsyncInfo>().get().addListener(toPath(subpath, len)) { path, entry, extra ->
             memScoped {

@@ -41,7 +41,7 @@ internal class DecsyncV1<T>(
     private fun entriesToLines(entries: Collection<Decsync.Entry>): List<String> =
             entries.map { it.toJson().toString() }
 
-    private class EntriesLocation(val path: List<String>, val newEntriesFile: DecsyncFile, val storedEntriesFile: DecsyncFile?, val readBytesFile: DecsyncFile?)
+    private class EntriesLocation(val path: List<String>, val newEntriesFile: DecsyncFile, val storedEntriesFile: DecsyncFile, val readBytesFile: DecsyncFile)
 
     private fun getNewEntriesLocation(path: List<String>, appId: String): EntriesLocation =
             EntriesLocation(
@@ -51,20 +51,12 @@ internal class DecsyncV1<T>(
                     dir.child(listOf("read-bytes", ownAppId, appId) + path)
             )
 
-    private fun getStoredEntriesLocation(path: List<String>): EntriesLocation =
-            EntriesLocation(
-                    path,
-                    dir.child(listOf("stored-entries", ownAppId) + path),
-                    null,
-                    null
-            )
-
     override fun setEntriesForPath(path: List<String>, entries: List<Decsync.Entry>) {
         val entriesLocation = getNewEntriesLocation(path, ownAppId)
 
         // Update stored entries
         val entries = entries.toMutableList()
-        updateStoredEntries(entriesLocation, entries, true)
+        updateStoredEntries(entriesLocation, entries, NoExtra(), true)
         if (entries.isEmpty()) return
 
         // Write new entries
@@ -88,73 +80,90 @@ internal class DecsyncV1<T>(
         val appIds = newEntriesDir.listDirectories().filter { it != ownAppId }
         for (appId in appIds) {
             newEntriesDir.child(appId)
-                    .listFilesRecursiveRelative(readBytesDir.child(appId))
-                    .map { getNewEntriesLocation(it, appId) }
-                    .forEach { executeEntriesLocation(it, optExtra) }
+                    .listFilesRecursiveRelative(readBytesDir.child(appId)) { path ->
+                        val entriesLocation = getNewEntriesLocation(path, appId)
+                        executeEntriesLocation(entriesLocation, optExtra)
+                    }
         }
     }
 
     private fun executeEntriesLocation(entriesLocation: EntriesLocation,
                                        optExtra: OptExtra<T>,
-                                       keys: List<JsonElement>? = null) {
-        val readBytes = entriesLocation.readBytesFile?.readText()?.toIntOrNull() ?: 0
+                                       keys: List<JsonElement>? = null): Boolean {
+        val readBytes = entriesLocation.readBytesFile.readText()?.toIntOrNull() ?: 0
         val size = entriesLocation.newEntriesFile.length()
-        if (readBytes >= size) return
-        entriesLocation.readBytesFile?.writeText(size.toString())
+        if (readBytes >= size) return true
 
-        val entries = entriesLocation.newEntriesFile
-                .readLines(readBytes)
+        val entries = readEntriesFromFile(entriesLocation.newEntriesFile, readBytes, keys)
+        val allSuccess = updateStoredEntries(entriesLocation, entries, optExtra)
+
+        if (allSuccess) {
+            entriesLocation.readBytesFile.writeText(size.toString())
+        }
+        return allSuccess
+    }
+
+    private fun readEntriesFromFile(file: DecsyncFile, readBytes: Int, keys: List<JsonElement>? = null): MutableList<Decsync.Entry> {
+        return file.readLines(readBytes)
                 .mapNotNull { Decsync.Entry.fromLine(it) }
                 .filter { keys == null || it.key in keys }
                 .groupBy { it.key }.values
                 .map { it.maxByOrNull { it.datetime }!! }
                 .toMutableList()
-        executeEntries(entriesLocation, entries, optExtra)
     }
 
-    private fun executeEntries(entriesLocation: EntriesLocation, entries: MutableList<Decsync.Entry>, optExtra: OptExtra<T>) {
-        updateStoredEntries(entriesLocation, entries)
-
-        if (optExtra is WithExtra) {
-            callListener(entriesLocation.path, entries, optExtra.value)
-        }
-    }
-
-    private fun updateStoredEntries(entriesLocation: EntriesLocation, entries: MutableList<Decsync.Entry>, requireNewValue: Boolean = false) {
-        if (entriesLocation.storedEntriesFile == null) {
-            return
-        }
-
-        try {
-            val storedEntries = HashMap<JsonElement, Decsync.Entry>()
-            entriesLocation.storedEntriesFile.readLines()
-                    .mapNotNull { Decsync.Entry.fromLine(it) }
-                    .forEach {
-                        storedEntries[it.key] = it
-                    }
-            var storedEntriesRemoved = false
-            val iterator = entries.iterator()
-            while (iterator.hasNext()) {
-                val entry = iterator.next()
-                val storedEntry = storedEntries[entry.key] ?: continue
-                if (entry.datetime > storedEntry.datetime && !(requireNewValue && entry.value == storedEntry.value)) {
-                    storedEntries.remove(entry.key)
-                    storedEntriesRemoved = true
-                } else {
-                    iterator.remove()
+    private fun updateStoredEntries(
+            entriesLocation: EntriesLocation,
+            entries: MutableList<Decsync.Entry>,
+            optExtra: OptExtra<T>,
+            requireNewValue: Boolean = false
+    ): Boolean {
+        // Get a map of the stored entries
+        val storedEntries = HashMap<JsonElement, Decsync.Entry>()
+        entriesLocation.storedEntriesFile.readLines()
+                .mapNotNull { Decsync.Entry.fromLine(it) }
+                .forEach {
+                    storedEntries[it.key] = it
                 }
-            }
-            if (storedEntriesRemoved) {
-                val lines = entriesToLines(storedEntries.values)
-                entriesLocation.storedEntriesFile.writeLines(lines)
-            }
-            val lines = entriesToLines(entries)
-            entriesLocation.storedEntriesFile.writeLines(lines, true)
 
-            updateLatestStoredEntry(entries)
-        } catch (e: Exception) {
-            Log.e(e.message ?: "")
+        // Filter out entries which are not newer than the stored one
+        val iterator = entries.iterator()
+        while (iterator.hasNext()) {
+            val entry = iterator.next()
+            val storedEntry = storedEntries[entry.key] ?: continue
+            if (entry.datetime <= storedEntry.datetime || (requireNewValue && entry.value == storedEntry.value)) {
+                iterator.remove()
+            }
         }
+
+        // Execute the new entries
+        // This also filters out any entries for which the listener fails
+        val success = if (optExtra is WithExtra) {
+            callListener(entriesLocation.path, entries, optExtra.value)
+        } else {
+            true
+        }
+
+        // Filter out the stored entries for which a new value is inserted
+        var storedEntriesRemoved = false
+        for (entry in entries) {
+            val storedEntry = storedEntries.remove(entry.key)
+            if (storedEntry != null) {
+                storedEntriesRemoved = true
+            }
+        }
+
+        // Write the new stored entries
+        if (storedEntriesRemoved) {
+            val lines = entriesToLines(storedEntries.values)
+            entriesLocation.storedEntriesFile.writeLines(lines)
+        }
+        val lines = entriesToLines(entries)
+        entriesLocation.storedEntriesFile.writeLines(lines, true)
+
+        updateLatestStoredEntry(entries)
+
+        return success
     }
 
     private fun updateLatestStoredEntry(entries: List<Decsync.Entry>) {
@@ -166,22 +175,20 @@ internal class DecsyncV1<T>(
         }
     }
 
-    override fun executeStoredEntriesForPathExact(path: List<String>, extra: T, keys: List<JsonElement>?) =
-            executeStoredEntriesForPath(path, extra, keys)
+    override fun executeStoredEntriesForPathExact(path: List<String>, extra: T, keys: List<JsonElement>?): Boolean =
+            executeStoredEntriesForPathPrefix(path, extra, keys)
 
-    override fun executeStoredEntriesForPathPrefix(prefix: List<String>, extra: T, keys: List<JsonElement>?) =
-            executeStoredEntriesForPath(prefix, extra, keys)
-
-    private fun executeStoredEntriesForPath(
-            path: List<String>,
+    override fun executeStoredEntriesForPathPrefix(
+            prefix: List<String>,
             extra: T,
             keys: List<JsonElement>?
-    ) {
-        dir.child(listOf("stored-entries", ownAppId) + path)
-                .listFilesRecursiveRelative()
-                .map { getStoredEntriesLocation(path + it) }
-                .forEach { entriesLocation ->
-                    executeEntriesLocation(entriesLocation, WithExtra(extra), keys)
+    ): Boolean {
+        return dir.child(listOf("stored-entries", ownAppId) + prefix)
+                .listFilesRecursiveRelative {
+                    val path = prefix + it
+                    val file = dir.child(listOf("stored-entries", ownAppId) + path)
+                    val entries = readEntriesFromFile(file, 0, keys)
+                    callListener(path, entries, extra)
                 }
     }
 

@@ -146,19 +146,39 @@ class Decsync<T> internal constructor(
      * matches. It matches when the given subpath is a prefix of the path of the entry.
      */
     fun addListener(subpath: List<String>, onEntryUpdate: (path: List<String>, entry: Entry, extra: T) -> Unit) =
+            instance.addListener(subpath) { path, entry, extra ->
+                onEntryUpdate(path, entry, extra)
+                true
+            }
+
+    /**
+     * Adds a listener, which describes the actions to execute on some updated entries. When an
+     * entry is updated, the function [onEntryUpdate] is called on the listener whose [subpath]
+     * matches. It matches when the given subpath is a prefix of the path of the entry.
+     *
+     * @return Boolean indicating whether the call succeeded. If false, the entry will be called
+     * again later. If an entry is not supported it should return true, as retrying will not help.
+     */
+    fun addListenerWithSuccess(subpath: List<String>, onEntryUpdate: (path: List<String>, entry: Entry, extra: T) -> Boolean) =
             instance.addListener(subpath, onEntryUpdate)
 
     fun addMultiListener(subpath: List<String>, onEntriesUpdate: (path: List<String>, entries: List<Entry>, extra: T) -> Unit) =
+            instance.addMultiListener(subpath) { path, entries, extra ->
+                onEntriesUpdate(path, entries, extra)
+                true
+            }
+
+    fun addMultiListenerWithSuccess(subpath: List<String>, onEntriesUpdate: (path: List<String>, entries: List<Entry>, extra: T) -> Boolean) =
             instance.addMultiListener(subpath, onEntriesUpdate)
 
     internal class OnEntriesUpdateListener<T>(
             val subpath: List<String>,
-            val callback: (path: List<String>, entries: List<Entry>, extra: T) -> Unit
+            val callback: (path: List<String>, entries: MutableList<Entry>, extra: T) -> Boolean
     ) {
         fun matchesPath(path: List<String>): Boolean = path.take(subpath.size) == subpath
-        fun onEntriesUpdate(path: List<String>, entries: List<Entry>, extra: T) {
+        fun onEntriesUpdate(path: List<String>, entries: MutableList<Entry>, extra: T): Boolean {
             val convertedPath = path.drop(subpath.size)
-            callback(convertedPath, entries, extra)
+            return callback(convertedPath, entries, extra)
         }
     }
 
@@ -339,9 +359,9 @@ class Decsync<T> internal constructor(
      * Gets the stored entry in [path] with key [key] and executes the corresponding action, passing
      * extra data [extra] to the listener.
      */
-    fun executeStoredEntry(path: List<String>, key: JsonElement, extra: T) {
+    fun executeStoredEntry(path: List<String>, key: JsonElement, extra: T): Boolean {
         Log.d("Execute 1 stored entry")
-        instance.executeStoredEntry(path, key, extra)
+        return instance.executeStoredEntry(path, key, extra)
     }
 
     /**
@@ -351,10 +371,10 @@ class Decsync<T> internal constructor(
      * @param storedEntries entries with path and key to be executed.
      * @param extra extra data passed to the listeners.
      */
-    fun executeStoredEntries(storedEntries: List<StoredEntry>, extra: T) {
-        if (storedEntries.isEmpty()) return
+    fun executeStoredEntries(storedEntries: List<StoredEntry>, extra: T): Boolean {
+        if (storedEntries.isEmpty()) return true
         Log.d("Execute ${storedEntries.size} stored entries")
-        instance.executeStoredEntries(storedEntries, extra)
+        return instance.executeStoredEntries(storedEntries, extra)
     }
 
     /**
@@ -370,9 +390,9 @@ class Decsync<T> internal constructor(
             path: List<String>,
             extra: T,
             keys: List<JsonElement>? = null
-    ) {
+    ): Boolean {
         Log.d("Execute stored entries of path $path")
-        instance.executeStoredEntriesForPathExact(path, extra, keys)
+        return instance.executeStoredEntriesForPathExact(path, extra, keys)
     }
 
     /**
@@ -388,9 +408,9 @@ class Decsync<T> internal constructor(
             prefix: List<String>,
             extra: T,
             keys: List<JsonElement>? = null
-    ) {
+    ): Boolean {
         Log.d("Execute stored entries of prefix $prefix")
-        instance.executeStoredEntriesForPathPrefix(prefix, extra, keys)
+        return instance.executeStoredEntriesForPathPrefix(prefix, extra, keys)
     }
 
     /**
@@ -573,16 +593,30 @@ internal abstract class DecsyncInst<T> {
 
     val listeners: MutableList<Decsync.OnEntriesUpdateListener<T>> = mutableListOf()
 
-    open fun addListener(subpath: List<String>, onEntryUpdate: (path: List<String>, entry: Decsync.Entry, extra: T) -> Unit) {
+    open fun addListener(subpath: List<String>, onEntryUpdate: (path: List<String>, entry: Decsync.Entry, extra: T) -> Boolean) {
         listeners += Decsync.OnEntriesUpdateListener(subpath) { path, entries, extra ->
-            for (entry in entries) {
-                onEntryUpdate(path, entry, extra)
+            var allSuccess = true
+            val iterator = entries.iterator()
+            while (iterator.hasNext()) {
+                val entry = iterator.next()
+                val success = onEntryUpdate(path, entry, extra)
+                if (!success) {
+                    iterator.remove()
+                    allSuccess = false
+                }
             }
+            allSuccess
         }
     }
 
-    open fun addMultiListener(subpath: List<String>, onEntriesUpdate: (path: List<String>, entries: List<Decsync.Entry>, extra: T) -> Unit) {
-        listeners += Decsync.OnEntriesUpdateListener(subpath, onEntriesUpdate)
+    open fun addMultiListener(subpath: List<String>, onEntriesUpdate: (path: List<String>, entries: List<Decsync.Entry>, extra: T) -> Boolean) {
+        listeners += Decsync.OnEntriesUpdateListener(subpath) { path, entries, extra ->
+            val success = onEntriesUpdate(path, entries, extra)
+            if (!success) {
+                entries.clear()
+            }
+            success
+        }
     }
 
     open fun setEntry(path: List<String>, key: JsonElement, value: JsonElement) =
@@ -597,40 +631,43 @@ internal abstract class DecsyncInst<T> {
 
     abstract fun executeAllNewEntries(optExtra: OptExtra<T>)
 
-    open fun callListener(path: List<String>, entries: List<Decsync.Entry>, extra: T) {
-        val filteredEntries = entries.filter {
-            if (path != listOf("info")) return@filter true
-            if (it.key !is JsonPrimitive) return@filter true
-            if (!it.key.isString) return@filter true
-            val keyString = it.key.content
-            !keyString.startsWith("last-active-") &&
-                    !keyString.startsWith("supported-version-")
+    open fun callListener(path: List<String>, entries: MutableList<Decsync.Entry>, extra: T): Boolean {
+        entries.removeAll {
+            path == listOf("info") &&
+                    it.key is JsonPrimitive &&
+                    it.key.isString &&
+                    (it.key.content.startsWith("last-active-") ||
+                            it.key.content.startsWith("supported-version-"))
         }
-        if (filteredEntries.isEmpty()) return
+        if (entries.isEmpty()) return true
         val listener = listeners.firstOrNull { it.matchesPath(path) } ?: run {
             Log.e("Unknown action for path $path")
-            return
+            return true
         }
-        listener.onEntriesUpdate(path, filteredEntries, extra)
+        return listener.onEntriesUpdate(path, entries, extra)
     }
 
-    open fun executeStoredEntry(path: List<String>, key: JsonElement, extra: T) =
+    open fun executeStoredEntry(path: List<String>, key: JsonElement, extra: T): Boolean =
             executeStoredEntriesForPathExact(path, extra, listOf(key))
 
-    open fun executeStoredEntries(storedEntries: List<Decsync.StoredEntry>, extra: T) =
-            storedEntries.groupBy({ it.path }, { it.key }).forEach { (path, keys) ->
-                executeStoredEntriesForPathExact(path, extra, keys)
-            }
+    open fun executeStoredEntries(storedEntries: List<Decsync.StoredEntry>, extra: T): Boolean {
+        var allSuccess = true
+        storedEntries.groupBy({ it.path }, { it.key }).forEach { (path, keys) ->
+            val success = executeStoredEntriesForPathExact(path, extra, keys)
+            allSuccess = allSuccess && success
+        }
+        return allSuccess
+    }
 
     abstract fun executeStoredEntriesForPathExact(
             path: List<String>,
             extra: T,
-            keys: List<JsonElement>? = null)
+            keys: List<JsonElement>? = null): Boolean
 
     abstract fun executeStoredEntriesForPathPrefix(
             prefix: List<String>,
             extra: T,
-            keys: List<JsonElement>? = null)
+            keys: List<JsonElement>? = null): Boolean
 
     abstract fun latestAppId(): String
 

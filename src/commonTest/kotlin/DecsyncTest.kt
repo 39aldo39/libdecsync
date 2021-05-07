@@ -117,6 +117,7 @@ abstract class DecsyncTest(
         val decsync = Decsync<MutableList<String>>(decsyncDir, localDir, syncType, null, "app-id")
         decsync.addListener(emptyList()) { _, entry, extra ->
             extra += entry.datetime
+            true
         }
         val path = listOf("path")
         val key = JsonPrimitive("key")
@@ -173,6 +174,7 @@ abstract class DecsyncTest(
         decsync.addListener(emptyList()) { path, entry, extra ->
             val map = extra.getOrPut(path) { mutableMapOf() }
             map[entry.key] = entry.value
+            true
         }
         return decsync
     }

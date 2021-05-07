@@ -21,6 +21,17 @@ void listener(const char** path, const int len, const char* datetime,
 	(*extra)[{pathVector, key}] = value;
 }
 
+bool listener_with_success(const char** path, const int len, const char* datetime,
+              const char* key, const char* value, void* extra_void) {
+	Extra* extra = static_cast<Extra*>(extra_void);
+	Path pathVector;
+	for (int i = 0; i < len; ++i) {
+		pathVector.push_back(path[i]);
+	}
+	(*extra)[{pathVector, key}] = value;
+	return true;
+}
+
 int test_instance() {
 	Decsync decsync;
 	int error = decsync_new(&decsync, ".tests/decsync_instance", "sync-type", nullptr, "app-id");
@@ -32,6 +43,7 @@ int test_instance() {
 
 	const char* path0[0] {};
 	decsync_add_listener(decsync, path0, 0, listener);
+	decsync_add_listener_with_success(decsync, path0, 0, listener_with_success);
 
 	const char* path1[2] {"foo1", "bar1"};
 	Path path1Vector {"foo1", "bar1"};

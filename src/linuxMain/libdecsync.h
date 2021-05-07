@@ -167,6 +167,28 @@ inline static void decsync_add_listener(Decsync decsync, const char** subpath, i
 }
 
 /**
+ * Adds a listener, which describes the actions to execute on some updated entries. When an entry is
+ * updated, the function [on_entry_update] is called on the listener whose [subpath] matches. It
+ * matches when the given subpath is a prefix of the path of the entry.
+ *
+ * @param decsync the [Decsync] instance to use.
+ * @param subpath array of null-terminated strings.
+ * @param len length of [subpath].
+ * @param on_entry_update function pointer which the following argument types:
+ *   - path: array of null-terminated strings.
+ *   - len: length of [path].
+ *   - datetime: ISO8601 formatted null-terminated string.
+ *   - key: null-terminated string.
+ *   - value: null-terminated string.
+ *   - extra: extra userdata passed through.
+ * @return Boolean indicating whether the call succeeded. If false, the entry will be called again
+ * later. If an entry is not supported it should return true, as retrying will not help.
+ */
+inline static void decsync_add_listener_with_success(Decsync decsync, const char** subpath, int len, bool (*on_entry_update)(const char** path, int len, const char* datetime, const char* key, const char* value, void* extra)) {
+    decsync_so_add_listener(decsync, subpath, len, (void*)on_entry_update);
+}
+
+/**
  * Associates the given [value] with the given [key] in the map corresponding to the given [path].
  * This update is sent to synchronized devices.
  *
