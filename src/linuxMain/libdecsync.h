@@ -2,6 +2,7 @@
 #define LIBDECSYNC_H
 
 #include "libdecsync_api.h"
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
