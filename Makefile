@@ -1,4 +1,5 @@
 prefix?=/usr
+libdir?=$(prefix)/lib
 
 INSTALL=install
 RM=rm -f
@@ -36,8 +37,8 @@ install: $(BUILD_DIR)/libdecsync_api.h $(BUILD_DIR)/libdecsync.so $(BUILD_DIR)/d
 	$(INSTALL) -d $(DESTDIR)$(prefix)/include
 	$(INSTALL) -m 644 $(BUILD_DIR)/libdecsync_api.h $(DESTDIR)$(prefix)/include
 	$(INSTALL) -m 644 src/linuxMain/libdecsync.h $(DESTDIR)$(prefix)/include
-	$(INSTALL) -d $(DESTDIR)$(prefix)/lib
-	$(INSTALL) -m 644 $(BUILD_DIR)/libdecsync.so $(DESTDIR)$(prefix)/lib
+	$(INSTALL) -d $(DESTDIR)$(libdir)
+	$(INSTALL) -m 644 $(BUILD_DIR)/libdecsync.so $(DESTDIR)$(libdir)
 	$(INSTALL) -d $(DESTDIR)$(prefix)/share/pkgconfig
 	$(INSTALL) -m 644 $(BUILD_DIR)/decsync.pc $(DESTDIR)$(prefix)/share/pkgconfig
 
