@@ -7,7 +7,7 @@ Name:		{{{ git_dir_name }}}
 Version:	{{{ git_dir_version }}}
 
 # Basic description of the package
-Summary:	Hello rpkg package.
+Summary:	library for DecSync	
 
 # This can be useful later for adding downstream patches
 Release:	1%{?dist}
