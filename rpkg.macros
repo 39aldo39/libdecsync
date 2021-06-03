@@ -1,0 +1,5 @@
+#!/bin/bash
+
+function pc_version {
+	awk '/^Version:/{print $NF}' src/linuxMain/decsync.pc.in
+}

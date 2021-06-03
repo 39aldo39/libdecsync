@@ -3,14 +3,14 @@
 # git_dir_name returns repository name derived from remote Git repository URL
 Name:		{{{ git_dir_name }}}
 
-# git_dir_version returns version based on commit and tag history of the Git project
-Version:	{{{ git_dir_version }}}
+# pc_version gets the version number from the package config file
+Version:	{{{ pc_version }}}
 
 # Basic description of the package
-Summary:	library for DecSync	
+Summary:	library for DecSync
 
 # This can be useful later for adding downstream patches
-Release:	1%{?dist}
+Release:	0%{?dist}
 
 # License. We assume GPLv2+ here.
 License:	GPLv2+
